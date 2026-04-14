@@ -59,27 +59,43 @@ export default function UsersTable({ initialUsers, currentUser }: UsersTableProp
   return (
     <div className="overflow-x-auto">
       {error && (
-        <div className="p-4 bg-red-50 border-b border-red-100 text-sm text-red-600">
-          {error}
+        <div className="p-4 bg-red-50 border-b border-red-100 flex items-center gap-2">
+          <span className="text-red-500">⚠️</span>
+          <span className="text-sm text-red-600 font-medium">{error}</span>
         </div>
       )}
       
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+            <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
+            <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+            <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Joined</th>
+            <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {users.map((user) => (
-            <tr key={user.id} className={user.id === currentUser.id ? 'bg-blue-50/30' : ''}>
+            <tr 
+              key={user.id} 
+              className={`hover:bg-gray-50 transition-colors ${user.id === currentUser.id ? 'bg-blue-50/20' : ''}`}
+            >
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                <div className="text-xs text-gray-500">{user.phone || 'No phone'}</div>
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs border border-gray-200">
+                    {user.full_name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                      {user.full_name}
+                      {user.id === currentUser.id && (
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase">You</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">{user.phone || 'No phone'}</div>
+                  </div>
+                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 {isAdminOrAbove(currentUser.role) && user.id !== currentUser.id && user.role !== 'owner' ? (
@@ -90,12 +106,14 @@ export default function UsersTable({ initialUsers, currentUser }: UsersTableProp
                     onRoleUpdate={handleRoleUpdate}
                   />
                 ) : (
-                  <span className="text-sm text-gray-700 capitalize">{user.role}</span>
+                  <span className="text-sm text-gray-700 capitalize font-medium">{user.role}</span>
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                  user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                <span className={`px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-full ${
+                  user.is_active 
+                    ? 'bg-green-100 text-green-700 border border-green-200' 
+                    : 'bg-red-100 text-red-700 border border-red-200'
                 }`}>
                   {user.is_active ? 'Active' : 'Inactive'}
                 </span>
@@ -103,16 +121,18 @@ export default function UsersTable({ initialUsers, currentUser }: UsersTableProp
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {new Date(user.created_at).toLocaleDateString()}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 {isAdminOrAbove(currentUser.role) && user.id !== currentUser.id && (
                   <button
                     onClick={() => toggleStatus(user.id, user.is_active)}
                     disabled={isLoading === user.id}
-                    className={`text-xs font-semibold uppercase tracking-wider ${
-                      user.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
+                    className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      user.is_active 
+                        ? 'text-red-600 hover:bg-red-50' 
+                        : 'text-blue-600 hover:bg-blue-50'
                     } disabled:opacity-50`}
                   >
-                    {isLoading === user.id ? 'Updating...' : (user.is_active ? 'Deactivate' : 'Activate')}
+                    {isLoading === user.id ? '...' : (user.is_active ? 'Deactivate' : 'Activate')}
                   </button>
                 )}
               </td>
