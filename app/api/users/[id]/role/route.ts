@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getCurrentUser } from '@/lib/auth/session'
 import { UpdateRoleSchema } from '@/lib/validations/users'
-import { canAssignRole } from '@/lib/auth/roles'
+import { ROLE_RANK, canAssignRole, type UserRole } from '@/lib/auth/roles'
 
 // Create a Supabase admin client using service role key
 const supabaseAdmin = createClient(
@@ -58,19 +58,45 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // STEP 6: Block owner demotion
+    // STEP 6: Block owner demotion — immutable
     if (targetUser.role === 'owner') {
-      return NextResponse.json({ error: 'Owner role cannot be changed' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Owner role cannot be changed' },
+        { status: 403 }
+      )
     }
 
     // STEP 7: Block self role-change
     if (targetUser.auth_id === currentUser.auth_id) {
-      return NextResponse.json({ error: 'Cannot change your own role' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Cannot change your own role' },
+        { status: 403 }
+      )
     }
 
-    // STEP 8: Check canAssignRole
+    // STEP 7.5: Current user must strictly outrank the TARGET USER'S CURRENT ROLE
+    // This blocks lateral moves: Admin cannot modify another Admin
+    if (
+      ROLE_RANK[currentUser.role] 
+      <= ROLE_RANK[targetUser.role as UserRole]
+    ) {
+      return NextResponse.json(
+        {
+          error: `You do not have authority over a ${targetUser.role}. Cannot modify.`
+        },
+        { status: 403 }
+      )
+    }
+
+    // STEP 8: Current user must also strictly outrank THE NEW ROLE being assigned
+    // This blocks role promotion above inviter's level
     if (!canAssignRole(currentUser.role, result.data.role)) {
-      return NextResponse.json({ error: 'Cannot assign this role' }, { status: 403 })
+      return NextResponse.json(
+        {
+          error: `A ${currentUser.role} cannot assign the ${result.data.role} role`
+        },
+        { status: 403 }
+      )
     }
 
     // STEP 9: UPDATE public.users

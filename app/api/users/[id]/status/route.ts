@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getCurrentUser } from '@/lib/auth/session'
 import { UpdateStatusSchema } from '@/lib/validations/users'
+import { ROLE_RANK, type UserRole } from '@/lib/auth/roles'
 
 // Create a Supabase admin client using service role key
 const supabaseAdmin = createClient(
@@ -60,6 +61,20 @@ export async function PATCH(
     // STEP 6: Block owner deactivation
     if (targetUser.role === 'owner') {
       return NextResponse.json({ error: 'Cannot deactivate the owner' }, { status: 403 })
+    }
+
+    // STEP 6.5: Must strictly outrank target user
+    // Prevents Admin from deactivating another Admin
+    if (
+      ROLE_RANK[currentUser.role] 
+      <= ROLE_RANK[targetUser.role as UserRole]
+    ) {
+      return NextResponse.json(
+        {
+          error: `You do not have authority over a ${targetUser.role}. Cannot modify.`
+        },
+        { status: 403 }
+      )
     }
 
     // STEP 7: Block self-deactivation
