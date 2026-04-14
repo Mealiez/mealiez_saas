@@ -53,6 +53,14 @@ function generateTempPassword(): string {
   return crypto.randomUUID().replace(/-/g, '') + 'Aa1!'
 }
 
+/**
+ * USAGE EXAMPLES:
+ * 
+ * GET /api/users              → all users
+ * GET /api/users?status=active   → active only
+ * GET /api/users?status=inactive → inactive only
+ * GET /api/users?status=active&page=2&limit=10
+ */
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser()
@@ -61,14 +69,26 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const page  = parseInt(searchParams.get('page')  ?? '1')
-    const limit = parseInt(searchParams.get('limit') ?? '20')
-    const clampedLimit = Math.min(Math.max(limit, 1), 100)
-    const offset = (page - 1) * clampedLimit
+    const page   = parseInt(searchParams.get('page')  ?? '1')
+    const limit  = parseInt(
+      String(Math.min(
+        Math.max(parseInt(searchParams.get('limit') ?? '20'), 1),
+        100
+      ))
+    )
+    const offset = (page - 1) * limit
+
+    // Status filter: 'active' | 'inactive' | 'all'
+    // Default is 'all' — callers opt in to filtering
+    const statusFilter = searchParams.get('status') ?? 'all'
+    const validStatuses = ['active', 'inactive', 'all']
+    const resolvedStatus = validStatuses.includes(statusFilter)
+      ? statusFilter
+      : 'all'
 
     const supabase = await createSupabaseServerClient()
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from('users')
       .select(`
         id,
@@ -80,7 +100,17 @@ export async function GET(request: NextRequest) {
         created_at
       `, { count: 'exact' })
       .order('created_at', { ascending: false })
-      .range(offset, offset + clampedLimit - 1)
+      .range(offset, offset + limit - 1)
+
+    // Apply status filter only when explicitly requested
+    if (resolvedStatus === 'active') {
+      query = query.eq('is_active', true)
+    } else if (resolvedStatus === 'inactive') {
+      query = query.eq('is_active', false)
+    }
+    // resolvedStatus === 'all' → no filter applied
+
+    const { data, error, count } = await query
 
     if (error) {
       console.error('[GET USERS ERROR]', error)
@@ -88,12 +118,16 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      data,
+      data: data ?? [],
       pagination: {
         page,
-        limit: clampedLimit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / clampedLimit)
+        limit,
+        total:      count ?? 0,
+        totalPages: Math.ceil((count ?? 0) / limit)
+      },
+      filter: {
+        status: resolvedStatus
+        // Frontend can use this to sync UI state
       }
     })
   } catch (err) {
