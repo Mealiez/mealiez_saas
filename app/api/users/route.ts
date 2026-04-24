@@ -186,10 +186,11 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 6: Create auth user
+    const tempPassword = generateTempPassword()
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       email_confirm: true,
-      password: generateTempPassword()
+      password: tempPassword
     })
 
     if (authError) {
@@ -234,11 +235,20 @@ export async function POST(request: NextRequest) {
       // Non-fatal, return success anyway but metadata will need repair
     }
 
-    // STEP 9: Send password reset email
-    await supabaseAdmin.auth.admin.generateLink({
+    // STEP 9: Generate recovery link for local testing
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email
     })
+
+    const recoveryLink = linkData?.properties?.action_link
+
+    // LOG FOR LOCAL TESTING
+    console.log('--- USER INVITE (DEBUG) ---')
+    console.log('Email:', email)
+    console.log('Temp Password:', tempPassword)
+    console.log('Recovery Link:', recoveryLink)
+    console.log('---------------------------')
 
     // STEP 10: Return 201
     return NextResponse.json({
@@ -248,6 +258,10 @@ export async function POST(request: NextRequest) {
         full_name: newUser.full_name,
         role:      newUser.role,
         is_active: newUser.is_active
+      },
+      debug: {
+        temp_password: tempPassword,
+        recovery_link: recoveryLink
       }
     }, { status: 201 })
 

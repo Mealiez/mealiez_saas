@@ -19,20 +19,46 @@ export type QRTokenResult =
   | { valid: true; payload: QRTokenPayload }
   | { valid: false; reason: string };
 
-const SECRET = process.env.ATTENDANCE_QR_SECRET!;
+export type MemberQRPayload = {
+  user_id: string;
+  tenant_id: string;
+  issued_at: number; // Unix timestamp
+  version: number; // increment on revoke+reissue
+  // version prevents old screenshots:
+  // admin verifies version matches DB record
+};
 
-if (!SECRET) {
+export type MemberQRVerifyResult =
+  | {
+      valid: true;
+      payload: MemberQRPayload;
+    }
+  | {
+      valid: false;
+      reason: string;
+    };
+
+const ATTENDANCE_QR_SECRET = process.env.ATTENDANCE_QR_SECRET!;
+
+if (!ATTENDANCE_QR_SECRET) {
   throw new Error(
-    'ATTENDANCE_QR_SECRET is not set. ' +
-    'Add it to .env.local'
+    'ATTENDANCE_QR_SECRET is not set. ' + 'Add it to .env.local'
+  );
+}
+
+const MEMBER_QR_SECRET = process.env.MEMBER_QR_SECRET!;
+
+if (!MEMBER_QR_SECRET) {
+  throw new Error(
+    'MEMBER_QR_SECRET is not set. ' + 'Add it to .env.local'
   );
 }
 
 /**
  * Signs a string using HMAC-SHA256 and returns a base64url signature.
  */
-function sign(data: string): string {
-  const hmac = crypto.createHmac('sha256', SECRET);
+function signWith(data: string, secret: string): string {
+  const hmac = crypto.createHmac('sha256', secret);
   hmac.update(data);
   return hmac.digest('base64url');
 }
@@ -41,16 +67,16 @@ function sign(data: string): string {
  * Encodes a payload into a signed token string.
  * Format: base64url(payload).signature
  */
-function encode(payload: QRTokenPayload): string {
+function encodeWith(payload: any, secret: string): string {
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig = sign(data);
+  const sig = signWith(data, secret);
   return `${data}.${sig}`;
 }
 
 /**
- * Decodes and verifies a token string.
+ * Decodes and verifies a token string signature.
  */
-function decode(token: string): QRTokenResult {
+function decodeWith(token: string, secret: string): { valid: true; payload: any; data: string } | { valid: false; reason: string } {
   // STEP 1: Split token on '.'
   const parts = token.split('.');
   if (parts.length !== 2) {
@@ -59,7 +85,7 @@ function decode(token: string): QRTokenResult {
 
   // STEP 2: Verify signature
   const [data, sig] = parts;
-  const expectedSig = sign(data);
+  const expectedSig = signWith(data, secret);
 
   const sigBuffer = Buffer.from(sig, 'base64url');
   const expBuffer = Buffer.from(expectedSig, 'base64url');
@@ -74,22 +100,16 @@ function decode(token: string): QRTokenResult {
   }
 
   // STEP 3: Decode payload
-  let payload: QRTokenPayload;
+  let payload: any;
   try {
     payload = JSON.parse(
       Buffer.from(data, 'base64url').toString('utf8')
-    ) as QRTokenPayload;
+    );
   } catch {
     return { valid: false, reason: 'Malformed payload' };
   }
 
-  // STEP 4: Check expiry
-  if (Date.now() / 1000 > payload.exp) {
-    return { valid: false, reason: 'Token expired' };
-  }
-
-  // STEP 5: Return valid
-  return { valid: true, payload };
+  return { valid: true, payload, data };
 }
 
 /**
@@ -109,14 +129,24 @@ export function generateQRToken(
     date: date,
     exp: Math.floor(Date.now() / 1000) + ttlMinutes * 60,
   };
-  return encode(payload);
+  return encodeWith(payload, ATTENDANCE_QR_SECRET);
 }
 
 /**
  * Verifies a QR token.
  */
 export function verifyQRToken(token: string): QRTokenResult {
-  return decode(token);
+  const res = decodeWith(token, ATTENDANCE_QR_SECRET);
+  if (!res.valid) return res;
+
+  const payload = res.payload as QRTokenPayload;
+
+  // STEP 4: Check expiry
+  if (Date.now() / 1000 > payload.exp) {
+    return { valid: false, reason: 'Token expired' };
+  }
+
+  return { valid: true, payload };
 }
 
 /**
@@ -130,4 +160,31 @@ export function refreshQRToken(
   date: string
 ): string {
   return generateQRToken(sessionId, tenantId, mealType, date, 15);
+}
+
+/**
+ * Generates a permanent member QR token.
+ */
+export function generateMemberQRToken(
+  userId: string,
+  tenantId: string,
+  version: number
+): string {
+  const payload: MemberQRPayload = {
+    user_id: userId,
+    tenant_id: tenantId,
+    issued_at: Math.floor(Date.now() / 1000),
+    version,
+  };
+  return encodeWith(payload, MEMBER_QR_SECRET);
+}
+
+/**
+ * Verifies a member QR token.
+ */
+export function verifyMemberQRToken(token: string): MemberQRVerifyResult {
+  const res = decodeWith(token, MEMBER_QR_SECRET);
+  if (!res.valid) return res;
+
+  return { valid: true, payload: res.payload as MemberQRPayload };
 }

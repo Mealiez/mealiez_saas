@@ -55,7 +55,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const supabase = await createClient()
   const { data: profile, error } = await supabase
     .from('users')
-    .select('id, full_name, is_active')
+    .select('id, full_name, is_active, role')
     .eq('auth_id', user.id)
     .single()
 
@@ -63,11 +63,17 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     return null
   }
 
+  // Source of truth for role:
+  // 1. Database (profile.role)
+  // 2. JWT app_metadata (backup/historical)
+  // 3. Default to 'member'
+  const finalRole = (profile.role || role || 'member') as AuthUser['role']
+
   return {
     id: profile.id,
     auth_id: user.id,
     tenant_id,
-    role: role || 'member',
+    role: finalRole,
     full_name: profile.full_name,
     email: user.email!,
     is_active: profile.is_active
