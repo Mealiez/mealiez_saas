@@ -83,6 +83,15 @@ export default function LoginForm() {
           />
         </div>
 
+        <div className="flex items-center justify-end">
+          <Link
+            href="/forgot-password"
+            className="text-sm text-indigo-600 hover:underline font-medium"
+          >
+            Forgot Password?
+          </Link>
+        </div>
+
         {error && (
           <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100">
             {error}

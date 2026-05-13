@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import QRDisplay from './QRDisplay';
 import AttendanceLog from './AttendanceLog';
+import MyQRModal from '@/components/web/MyQRModal';
+import MemberScannerModal from '@/components/web/MemberScannerModal';
 
 /*
  * SERVER COMPONENT: Attendance Session Details
