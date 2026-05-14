@@ -36,11 +36,11 @@ To support multi-tenant membership per email:
 **Status:** Active
 
 ### Decision
-Role ranks: owner(4) > admin(3) > manager(2) > member(1)
+Role ranks: admin(3) > manager(2) > member(1)
+(Updated from: owner(4) > admin(3) > manager(2) > member(1))
 
 ### Rules
-- Owner role assigned ONLY during tenant onboarding
-- Owner role is immutable (cannot be changed via API)
+- Admin role assigned during tenant onboarding
 - To modify User X, you must strictly outrank X's 
   CURRENT role AND the NEW role being assigned
 - Admins cannot modify other Admins (peers blocked)
@@ -61,3 +61,26 @@ query parameters.
 - API routes: `currentUser.tenant_id` from JWT only
 - RLS: `public.get_tenant_id()` from JWT only
 - Onboarding: set by server, never by client
+
+---
+
+## ADR-005: Super Admin Architecture Change
+
+**Status:** Active  
+**Date:** Wednesday, May 13, 2026
+
+### Decision
+The 'owner' role is renamed to 'admin' at the tenant level. 
+A new platform-level 'super_admin' role is introduced via 
+`is_super_admin: true` in `auth.users.app_metadata`.
+
+### Reason
+- 'owner' was confusing and implied platform ownership.
+- Need a platform-level role for the Mealiez team to 
+  monitor and manage all tenants without being a 
+  member of each.
+
+### Consequence
+- RLS policies updated to allow `is_super_admin()` to SELECT all rows.
+- Onboarding now creates an 'admin' instead of an 'owner'.
+- Existing 'owner' data migrated to 'admin'.
