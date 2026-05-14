@@ -36,7 +36,6 @@ const supabaseAdmin = createSupabaseAdminClient(
 )
 
 const ROLE_RANK: Record<string, number> = {
-  owner:   4,
   admin:   3,
   manager: 2,
   member:  1
@@ -143,9 +142,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!['owner', 'admin'].includes(currentUser.role)) {
+    if (!isAdminOrAbove(currentUser.role)) {
       return NextResponse.json(
-        { error: 'Only owners and admins can invite users' },
+        { error: 'Only admins can invite users' },
         { status: 403 }
       )
     }

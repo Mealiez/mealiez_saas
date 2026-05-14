@@ -7,7 +7,6 @@ import { z } from 'zod'
 
 /**
  * Schema for inviting a new user to a tenant.
- * Note: 'owner' is intentionally excluded as it is only assigned during onboarding.
  */
 export const InviteUserSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -26,7 +25,6 @@ export const InviteUserSchema = z.object({
 
 /**
  * Schema for updating a user's role.
- * Note: 'owner' is excluded to prevent unauthorized role escalation.
  */
 export const UpdateRoleSchema = z.object({
   role: z.enum(['admin', 'manager', 'member'], {

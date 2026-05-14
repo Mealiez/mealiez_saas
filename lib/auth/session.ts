@@ -7,16 +7,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cache } from 'react'
-
-export type AuthUser = {
-  id: string           // auth.uid()
-  auth_id: string      // same as id, explicit alias
-  tenant_id: string    // from app_metadata
-  role: 'owner' | 'admin' | 'manager' | 'member'
-  full_name: string    // from public.users table
-  email: string        // from auth.users
-  is_active: boolean   // from public.users table
-}
+import { AuthUser, SuperAdminUser, TenantRole } from './roles'
 
 /**
  * getSession()
@@ -38,15 +29,22 @@ export const getSession = cache(async () => {
 /**
  * getCurrentUser()
  * Assembles the full user profile including tenant and role context.
+ * NOTE: Returns null for platform Super Admins. Use getSuperAdminUser() instead.
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const sessionData = await getSession()
   if (!sessionData) return null
 
   const { user } = sessionData
-  const tenant_id = user.app_metadata?.tenant_id as string | undefined
-  const role = user.app_metadata?.role as AuthUser['role'] | undefined
 
+  // Super admin check
+  const isSuperAdmin =
+    user.user_metadata?.is_super_admin === true ||
+    user.app_metadata?.is_super_admin === true
+
+  if (isSuperAdmin) return null
+
+  const tenant_id = user.app_metadata?.tenant_id as string | undefined
   if (!tenant_id) {
     console.error('[AUTH] tenant_id missing from JWT')
     return null
@@ -64,19 +62,40 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   }
 
   // Source of truth for role:
-  // 1. Database (profile.role)
-  // 2. JWT app_metadata (backup/historical)
-  // 3. Default to 'member'
-  const finalRole = (profile.role || role || 'member') as AuthUser['role']
+  // Note: 'owner' is mapped to 'admin' for backward compatibility during transition
+  let finalRole = profile.role
+  if (finalRole === 'owner') finalRole = 'admin'
 
   return {
     id: profile.id,
     auth_id: user.id,
     tenant_id,
-    role: finalRole,
+    role: finalRole as TenantRole,
     full_name: profile.full_name,
-    email: user.email!,
     is_active: profile.is_active
+  }
+}
+
+/**
+ * getSuperAdminUser()
+ * Returns platform admin context. No tenant_id.
+ */
+export async function getSuperAdminUser(): Promise<SuperAdminUser | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return null
+
+  const isSuperAdmin =
+    user.user_metadata?.is_super_admin === true ||
+    user.app_metadata?.is_super_admin === true
+
+  if (!isSuperAdmin) return null
+
+  return {
+    id:             user.id,
+    email:          user.email ?? '',
+    is_super_admin: true
   }
 }
 

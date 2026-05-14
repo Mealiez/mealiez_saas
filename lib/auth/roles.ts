@@ -1,14 +1,27 @@
-export const ROLE_RANK = {
-  owner:   4,
+export const ROLE_RANK: Record<string, number> = {
   admin:   3,
   manager: 2,
   member:  1
-} as const
+}
 
-export type UserRole = keyof typeof ROLE_RANK
+export type TenantRole = 'admin' | 'manager' | 'member'
 
-export const ROLE_LABELS: Record<UserRole, string> = {
-  owner:   'Owner',
+export type AuthUser = {
+  id:          string
+  auth_id:     string
+  tenant_id:   string
+  full_name:   string
+  role:        TenantRole
+  is_active:   boolean
+}
+
+export type SuperAdminUser = {
+  id:            string    // auth.uid()
+  email:         string
+  is_super_admin: true
+}
+
+export const ROLE_LABELS: Record<string, string> = {
   admin:   'Admin',
   manager: 'Manager',
   member:  'Member'
@@ -16,13 +29,28 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 /**
  * Roles that can be assigned via invite.
- * 'owner' is excluded as it is only assigned during onboarding.
  */
-export const ASSIGNABLE_ROLES: UserRole[] = [
+export const ASSIGNABLE_ROLES: TenantRole[] = [
   'admin',
   'manager',
   'member'
 ]
+
+/**
+ * isAdminOrAbove()
+ * Returns true if the role is Admin.
+ */
+export function isAdminOrAbove(role: string): boolean {
+  return (ROLE_RANK[role] || 0) >= ROLE_RANK['admin']
+}
+
+/**
+ * isManagerOrAbove()
+ * Returns true if the role is Manager or above.
+ */
+export function isManagerOrAbove(role: string): boolean {
+  return (ROLE_RANK[role] || 0) >= ROLE_RANK['manager']
+}
 
 /**
  * canAssignRole()
@@ -30,10 +58,10 @@ export const ASSIGNABLE_ROLES: UserRole[] = [
  * strictly below their own rank.
  */
 export function canAssignRole(
-  inviterRole: UserRole,
-  targetRole: UserRole
+  assignerRole: string,
+  targetRole: string
 ): boolean {
-  return ROLE_RANK[inviterRole] > ROLE_RANK[targetRole]
+  return (ROLE_RANK[assignerRole] || 0) > (ROLE_RANK[targetRole] || 0)
 }
 
 /**
@@ -41,18 +69,10 @@ export function canAssignRole(
  * Returns true if roleA has a higher rank than roleB.
  */
 export function outranks(
-  roleA: UserRole,
-  roleB: UserRole
+  roleA: string,
+  roleB: string
 ): boolean {
-  return ROLE_RANK[roleA] > ROLE_RANK[roleB]
-}
-
-/**
- * isAdminOrAbove()
- * Returns true if the role is Admin or Owner.
- */
-export function isAdminOrAbove(role: UserRole): boolean {
-  return ROLE_RANK[role] >= ROLE_RANK['admin']
+  return (ROLE_RANK[roleA] || 0) > (ROLE_RANK[roleB] || 0)
 }
 
 /**
@@ -60,8 +80,8 @@ export function isAdminOrAbove(role: UserRole): boolean {
  * Returns a filtered list of roles the inviter is allowed to assign.
  */
 export function getAssignableRoles(
-  inviterRole: UserRole
-): UserRole[] {
+  inviterRole: string
+): TenantRole[] {
   return ASSIGNABLE_ROLES.filter(
     role => canAssignRole(inviterRole, role)
   )
