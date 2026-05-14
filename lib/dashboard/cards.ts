@@ -41,7 +41,7 @@ export const MODULE_CARDS: ModuleCard[] = [
     icon: '\uD83D\uDC65',
     requiredFeature: null,
     // user management is always available
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin'], // ← UPDATED: owner removed
     manageRoles: ['admin'],
     badge: null,
     size: 'normal',
@@ -89,7 +89,7 @@ export const MODULE_CARDS: ModuleCard[] = [
     href: '/reports',
     icon: '\uD83D\uDCCA',
     requiredFeature: 'custom_reports',
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin'], // ← UPDATED: owner removed
     manageRoles: ['admin'],
     badge: null,
     size: 'normal',
@@ -114,7 +114,7 @@ export const MODULE_CARDS: ModuleCard[] = [
     href: '/billing',
     icon: '\uD83D\uDCB3',
     requiredFeature: 'billing',
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin'], // ← UPDATED: owner removed
     manageRoles: ['admin'],
     badge: null,
     size: 'normal',

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     return featureDisabledResponse()
   }
 
-  if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+  if (!['admin', 'manager'].includes(currentUser.role)) { // ← UPDATED: owner removed
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

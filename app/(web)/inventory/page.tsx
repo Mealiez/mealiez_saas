@@ -44,8 +44,8 @@ export default async function InventoryPage() {
     ).length ?? 0,
   }
 
-  const canManage = ['owner', 'admin', 'manager'].includes(user.role)
-  const canAdmin = ['owner', 'admin'].includes(user.role)
+  const canManage = ['admin', 'manager'].includes(user.role) // ← UPDATED: owner removed
+  const canAdmin = user.role === 'admin' // ← UPDATED: owner removed
 
   return (
     <div className="space-y-8 p-6">

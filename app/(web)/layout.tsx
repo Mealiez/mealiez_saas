@@ -64,14 +64,21 @@ export default async function WebLayout({
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
             Main Menu
           </div>
-          {navItems.map(item => (
-            <NavLink
-              key={item.href}
-              href={item.href}
-              icon={item.icon}
-              label={item.label}
-            />
-          ))}
+          {navItems
+            .filter(item => {
+              if (['Users', 'Settings'].includes(item.label)) {
+                return user.role === 'admin' // ← UPDATED: owner removed
+              }
+              return true
+            })
+            .map(item => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+              />
+            ))}
         </nav>
 
         {/* Footer Sidebar Section */}

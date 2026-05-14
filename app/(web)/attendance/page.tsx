@@ -23,7 +23,7 @@ export default async function AttendancePage() {
     .eq('session_date', today)
     .order('started_at', { ascending: false });
 
-  const canManage = ['owner', 'admin', 'manager'].includes(user.role);
+  const canManage = ['admin', 'manager'].includes(user.role); // ← UPDATED: owner removed
 
   const formattedDate = new Date().toLocaleDateString('en-IN', {
     day: '2-digit',

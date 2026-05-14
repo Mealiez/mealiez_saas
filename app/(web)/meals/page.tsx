@@ -17,7 +17,7 @@ export default async function MealsPage() {
     .order('created_at', { ascending: false })
     .limit(20);
 
-  const canManage = ['owner', 'admin', 'manager'].includes(user.role);
+  const canManage = ['admin', 'manager'].includes(user.role); // ← UPDATED: owner removed
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

@@ -27,8 +27,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // STEP 2: requireOwnerOrAdmin
-    if (!['owner', 'admin'].includes(currentUser.role)) {
+    // STEP 2: requireAdmin
+    if (currentUser.role !== 'admin') { // ← UPDATED: owner removed
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
@@ -58,9 +58,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // STEP 6: Block owner deactivation
-    if (targetUser.role === 'owner') {
-      return NextResponse.json({ error: 'Cannot deactivate the owner' }, { status: 403 })
+    // STEP 6: Block lateral deactivation — admins cannot deactivate other admins
+    if (targetUser.role === 'admin' && targetUser.auth_id !== currentUser.auth_id) {
+       return NextResponse.json({ error: 'Cannot deactivate another administrator' }, { status: 403 })
     }
 
     // STEP 6.5: Must strictly outrank target user

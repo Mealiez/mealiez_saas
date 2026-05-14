@@ -98,7 +98,7 @@ export default function UsersTable({ initialUsers, currentUser }: UsersTableProp
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {isAdminOrAbove(currentUser.role) && user.id !== currentUser.id && user.role !== 'owner' ? (
+                {isAdminOrAbove(currentUser.role) && user.id !== currentUser.id && user.role !== 'admin' ? ( // ← UPDATED: owner → admin
                   <RoleUpdateDropdown
                     userId={user.id}
                     currentRole={user.role}

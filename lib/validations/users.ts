@@ -18,8 +18,8 @@ export const InviteUserSchema = z.object({
     .max(20)
     .optional()
     .nullable(),
-  role: z.enum(['admin', 'manager', 'member'], {
-    error: 'Role must be admin, manager, or member'
+  role: z.enum(['manager', 'member'], { // ← UPDATED: admin removed
+    error: 'Role must be manager or member'
   })
 })
 
@@ -27,8 +27,8 @@ export const InviteUserSchema = z.object({
  * Schema for updating a user's role.
  */
 export const UpdateRoleSchema = z.object({
-  role: z.enum(['admin', 'manager', 'member'], {
-    error: 'Role must be admin, manager, or member'
+  role: z.enum(['manager', 'member'], { // ← UPDATED: admin removed
+    error: 'Role must be manager or member'
   })
 })
 

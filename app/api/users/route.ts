@@ -5,15 +5,14 @@
  * It is NEVER read from request body or query params.
  *
  * ROLE HIERARCHY (high to low):
- *   owner > admin > manager > member
+ *   admin > manager > member
  *
  * Invite rules:
- *   - Only owner or admin can invite users
+ *   - Only admin can invite users
  *   - Inviter cannot assign a role >= their own role
- *     (admin cannot create another admin or owner)
- *     (owner CAN create admin)
+ *     (admin cannot create another admin)
  *
- * owner role is NEVER assignable via invite.
+ * admin role is assignable only by super admins via platform API.
  */
 
 import { NextRequest, NextResponse } from 'next/server'

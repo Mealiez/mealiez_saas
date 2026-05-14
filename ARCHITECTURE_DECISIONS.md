@@ -64,23 +64,32 @@ query parameters.
 
 ---
 
-## ADR-005: Super Admin Architecture Change
+## ADR-005: Super Admin Architecture (Role Refactor)
 
 **Status:** Active  
-**Date:** Wednesday, May 13, 2026
+**Date:** Thursday, May 14, 2026
 
 ### Decision
-The 'owner' role is renamed to 'admin' at the tenant level. 
-A new platform-level 'super_admin' role is introduced via 
-`is_super_admin: true` in `auth.users.app_metadata`.
+The 'owner' tenant role is renamed to 'admin'.
+A new SUPER ADMIN concept is introduced at the
+platform level.
 
-### Reason
-- 'owner' was confusing and implied platform ownership.
-- Need a platform-level role for the Mealiez team to 
-  monitor and manage all tenants without being a 
-  member of each.
+### Tenant Roles (new)
+  admin(3) > manager(2) > member(1)
 
-### Consequence
-- RLS policies updated to allow `is_super_admin()` to SELECT all rows.
-- Onboarding now creates an 'admin' instead of an 'owner'.
-- Existing 'owner' data migrated to 'admin'.
+### Super Admin
+  is_super_admin: true in auth.users.app_metadata
+  No tenant_id — platform-level identity
+  Separate UI: /super/* routes
+  Separate auth: /super/login
+  Separate API: /api/super/* (service role)
+
+### Migration
+  UPDATE public.users SET role='admin' WHERE role='owner'
+  All JWT app_metadata updated on next user sign-in
+  via session.ts getCurrentUser() refresh logic
+
+### Enforcement
+  Tenant routes: getCurrentUser() → TenantUser (no super)
+  Super admin routes: getSuperAdminUser() → SuperAdminUser
+  These two functions NEVER overlap.

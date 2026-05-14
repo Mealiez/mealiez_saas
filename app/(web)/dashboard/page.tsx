@@ -32,8 +32,7 @@ export default async function DashboardPage() {
 
   // STEP 4: Build role context string for subtitle
   const roleContext: Record<string, string> = {
-    owner: 'You have full access to all modules.',
-    admin: 'You have administrative access.',
+    admin: 'You have full administrative access.', // ← UPDATED: owner removed
     manager: 'You can manage meals and attendance.',
     member: 'You can view meals and attendance.',
   };
