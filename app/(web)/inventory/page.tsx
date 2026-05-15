@@ -32,6 +32,23 @@ export default async function InventoryPage() {
     .order('created_at', { ascending: false })
     .limit(10)
 
+  // Fetch proactive shortage forecast
+  const { data: shortageData } = await supabase
+    .rpc('run_shortage_forecast', {
+      p_tenant_id: user.tenant_id,
+      p_days: 30
+    })
+
+  // Fetch today's meal cost
+  const today = new Date().toISOString().split('T')[0]
+  const { data: todayDeductions } = await supabase
+    .from('meal_deductions')
+    .select('cost_amount, attendance_sessions!inner(session_date)')
+    .eq('tenant_id', user.tenant_id)
+    .eq('attendance_sessions.session_date', today)
+
+  const mealCost = todayDeductions?.reduce((acc: number, val: any) => acc + (val.cost_amount || 0), 0) || 0
+
   // Build summary counts
   const summary = {
     totalValue: 0, // Mock for now, would sum (stock * avg_cost)
@@ -42,7 +59,7 @@ export default async function InventoryPage() {
       (r: any) => r.stock_status === 'low_stock'
     ).length ?? 0,
     expiring: 0, // Mock
-    mealCost: 840, // Mock
+    mealCost: mealCost,
   }
 
   const canManage = ['admin', 'manager'].includes(user.role)
@@ -134,57 +151,42 @@ export default async function InventoryPage() {
       </div>
 
       {/* Forecast Summary */}
-      {hasInventory && (
+      {hasInventory && shortageData && shortageData.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold tracking-tight">Forecast Summary</h2>
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-l-4 border-l-green-500">
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-semibold">Rice</h3>
-                    <p className="text-sm text-muted-foreground">50 kg current</p>
-                  </div>
-                  <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">Healthy</span>
-                </div>
-                <div className="space-y-1 text-sm mt-4">
-                  <div className="flex justify-between"><span>Avg Usage:</span> <span className="font-medium">10 kg/day</span></div>
-                  <div className="flex justify-between text-muted-foreground"><span>Stockout:</span> <span>Oct 25 (5 days)</span></div>
-                </div>
-              </CardContent>
-            </Card>
+            {shortageData.slice(0, 3).map((item: any) => {
+              const isHealthy = item.alert_level === 'HEALTHY'
+              const isWarning = item.alert_level === 'WARNING'
+              const isCritical = item.alert_level === 'CRITICAL'
+              
+              const borderClass = isCritical ? 'border-l-red-500' : isWarning ? 'border-l-amber-500' : 'border-l-green-500'
+              const badgeClass = isCritical ? 'bg-red-100 text-red-700' : isWarning ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+              
+              const stockoutText = item.days_remaining > 990 
+                ? 'Sufficient' 
+                : `${item.days_remaining} days left`
 
-            <Card className="border-l-4 border-l-red-500">
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-semibold">Milk</h3>
-                    <p className="text-sm text-muted-foreground">12 L current</p>
-                  </div>
-                  <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-medium">Critical</span>
-                </div>
-                <div className="space-y-1 text-sm mt-4">
-                  <div className="flex justify-between"><span>Avg Usage:</span> <span className="font-medium">6 L/day</span></div>
-                  <div className="flex justify-between text-muted-foreground"><span>Stockout:</span> <span>Oct 22 (2 days)</span></div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-amber-500">
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-semibold">Chicken</h3>
-                    <p className="text-sm text-muted-foreground">20 kg current</p>
-                  </div>
-                  <span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-full font-medium">Warning</span>
-                </div>
-                <div className="space-y-1 text-sm mt-4">
-                  <div className="flex justify-between"><span>Avg Usage:</span> <span className="font-medium">5 kg/day</span></div>
-                  <div className="flex justify-between text-muted-foreground"><span>Stockout:</span> <span>Oct 24 (4 days)</span></div>
-                </div>
-              </CardContent>
-            </Card>
+              return (
+                <Card key={item.inventory_item_id} className={`border-l-4 ${borderClass}`}>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-semibold">{item.item_name}</h3>
+                        <p className="text-sm text-muted-foreground">{item.current_stock} {item.unit} current</p>
+                      </div>
+                      <span className={`${badgeClass} text-xs px-2 py-1 rounded-full font-medium capitalize`}>
+                        {item.alert_level.toLowerCase()}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-sm mt-4">
+                      <div className="flex justify-between"><span>Avg Usage:</span> <span className="font-medium">{item.avg_daily_consumption.toFixed(2)} {item.unit}/day</span></div>
+                      <div className="flex justify-between text-muted-foreground"><span>Stockout:</span> <span>{stockoutText}</span></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </div>
       )}
