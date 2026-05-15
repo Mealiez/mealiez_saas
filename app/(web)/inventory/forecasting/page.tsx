@@ -1,57 +1,70 @@
-'use client'
-
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { requireAuth } from '@/lib/auth/session'
+import { createClient } from '@/lib/supabase/server'
+import ForecastingCharts from './ForecastingCharts'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, Legend
-} from 'recharts'
-import { AlertTriangle, TrendingUp, PackageSearch } from 'lucide-react'
+import { PackageSearch } from 'lucide-react'
 
-// --- MOCK DATA ---
-const depletionData = [
-  { day: 'Day 1', rice: 50, dal: 15, oil: 8 },
-  { day: 'Day 3', rice: 40, dal: 12, oil: 7 },
-  { day: 'Day 5', rice: 30, dal: 9, oil: 6 },
-  { day: 'Day 7', rice: 20, dal: 6, oil: 5 },
-  { day: 'Day 9', rice: 10, dal: 3, oil: 4 },
-  { day: 'Day 11', rice: 0, dal: 0, oil: 2 },
-]
+export default async function ForecastingDashboardPage() {
+  const user = await requireAuth()
+  const supabase = await createClient()
 
-const mealCostingData = [
-  { date: '10/01', cost: 3200 },
-  { date: '10/02', cost: 3400 },
-  { date: '10/03', cost: 3100 },
-  { date: '10/04', cost: 3800 },
-  { date: '10/05', cost: 3600 },
-  { date: '10/06', cost: 3900 },
-  { date: '10/07', cost: 4100 },
-]
+  // Fetch proactive shortage forecast
+  const { data: shortageData, error } = await supabase
+    .rpc('run_shortage_forecast', {
+      p_tenant_id: user.tenant_id,
+      p_days: 30
+    })
 
-const wastageData = [
-  { name: 'Cooking', kg: 12 },
-  { name: 'Plate', kg: 19 },
-  { name: 'Spoilage', kg: 5 },
-]
+  // Fetch recent meal deductions for costing and wastage trends
+  const { data: recentDeductions } = await supabase
+    .from('meal_deductions')
+    .select(`
+      id, deduction_type, actual_quantity, cost_amount,
+      attendance_sessions ( session_date )
+    `)
+    .eq('tenant_id', user.tenant_id)
+    .order('created_at', { ascending: false })
+    .limit(500)
 
-const contributionData = [
-  { name: 'Produce', value: 400 },
-  { name: 'Dairy', value: 300 },
-  { name: 'Dry Goods', value: 300 },
-  { name: 'Protein', value: 200 },
-]
+  // Process data for charts
+  const depletionData = (shortageData || [])
+    .filter((d: any) => d.days_remaining !== 999) // exclude infinite
+    .slice(0, 5) // top 5 critical
+    .map((d: any) => ({
+      name: d.item_name,
+      days: d.days_remaining,
+      stock: d.current_stock
+    }))
 
-const forecastConfidenceData = [
-  { day: 'Mon', high: 400, expected: 350, low: 300 },
-  { day: 'Tue', high: 420, expected: 360, low: 310 },
-  { day: 'Wed', high: 450, expected: 380, low: 320 },
-  { day: 'Thu', high: 460, expected: 400, low: 330 },
-  { day: 'Fri', high: 500, expected: 450, low: 380 },
-]
+  // Aggregate cost by date
+  const costingMap: Record<string, number> = {}
+  let totalWastage = 0
+  let totalUsage = 0
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042']
+  if (recentDeductions) {
+    recentDeductions.forEach((d: any) => {
+      const date = d.attendance_sessions?.session_date || 'Unknown'
+      if (d.deduction_type === 'MEAL_USAGE') {
+        costingMap[date] = (costingMap[date] || 0) + (d.cost_amount || 0)
+        totalUsage += d.actual_quantity || 0
+      } else if (d.deduction_type === 'WASTAGE') {
+        totalWastage += d.actual_quantity || 0
+      }
+    })
+  }
 
-export default function ForecastingDashboardPage() {
+  const mealCostingData = Object.keys(costingMap)
+    .sort()
+    .map(date => ({ date, cost: costingMap[date] }))
+
+  const wastageData = [
+    { name: 'Usage', kg: totalUsage },
+    { name: 'Wastage', kg: totalWastage },
+  ]
+
+  const actionsRequired = (shortageData || []).filter((d: any) => d.alert_level === 'CRITICAL' || d.alert_level === 'WARNING')
+
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
@@ -75,135 +88,28 @@ export default function ForecastingDashboardPage() {
                 Based on current consumption trends, the following items require immediate restocking:
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
-                <span className="px-3 py-1 bg-background rounded-full text-sm font-medium border shadow-sm">Rice → 350kg</span>
-                <span className="px-3 py-1 bg-background rounded-full text-sm font-medium border shadow-sm">Milk → 120L</span>
-                <span className="px-3 py-1 bg-background rounded-full text-sm font-medium border shadow-sm">Paneer → 25kg</span>
+                {actionsRequired.length > 0 ? (
+                  actionsRequired.map((item: any) => (
+                     <span key={item.inventory_item_id} className={`px-3 py-1 bg-background rounded-full text-sm font-medium border shadow-sm ${item.alert_level === 'CRITICAL' ? 'border-red-300 text-red-700' : 'border-amber-300 text-amber-700'}`}>
+                        {item.item_name} → {item.recommended_purchase}{item.unit}
+                     </span>
+                  ))
+                ) : (
+                  <span className="text-sm font-medium text-green-700">All inventory levels are healthy.</span>
+                )}
               </div>
             </div>
           </div>
-          <Button variant="default" className="shrink-0">Review Purchase Order</Button>
+          {actionsRequired.length > 0 && <Button variant="default" className="shrink-0">Review Purchase Order</Button>}
         </CardContent>
       </Card>
 
-      {/* Charts Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        
-        {/* Inventory Depletion (Line Chart) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Projected Inventory Depletion</CardTitle>
-            <CardDescription>Estimated days remaining for key staples</CardDescription>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={depletionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                <Legend />
-                <Line type="monotone" dataKey="rice" stroke="#8884d8" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="dal" stroke="#82ca9d" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="oil" stroke="#ffc658" strokeWidth={2} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Meal Costing (Area Chart) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Meal Costing Trends</CardTitle>
-            <CardDescription>Daily food cost over the last 7 days</CardDescription>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mealCostingData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip />
-                <Area type="monotone" dataKey="cost" stroke="#1e3a8a" fillOpacity={1} fill="url(#colorCost)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Wastage (Bar Chart) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Wastage Analysis</CardTitle>
-            <CardDescription>Volume of waste by category (kg)</CardDescription>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={wastageData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip cursor={{fill: 'transparent'}} />
-                <Bar dataKey="kg" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={60} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Ingredient Contribution (Donut Chart) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Ingredient Cost Contribution</CardTitle>
-            <CardDescription>Distribution of expenses by category</CardDescription>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={contributionData}
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {contributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Forecast Confidence (Stacked Area Chart) */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Consumption Forecast Confidence</CardTitle>
-            <CardDescription>Expected attendance range driving procurement decisions</CardDescription>
-          </CardHeader>
-          <CardContent className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={forecastConfidenceData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip />
-                <Legend />
-                <Area type="monotone" dataKey="low" stackId="1" stroke="#82ca9d" fill="#82ca9d" opacity={0.3} />
-                <Area type="monotone" dataKey="expected" stackId="1" stroke="#8884d8" fill="#8884d8" opacity={0.6} />
-                <Area type="monotone" dataKey="high" stackId="1" stroke="#ffc658" fill="#ffc658" opacity={0.3} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-      </div>
+      {/* Charts Grid - Rendered on Client */}
+      <ForecastingCharts 
+        depletionData={depletionData} 
+        mealCostingData={mealCostingData.length ? mealCostingData : [{ date: 'Today', cost: 0 }]}
+        wastageData={wastageData}
+      />
     </div>
   )
 }
