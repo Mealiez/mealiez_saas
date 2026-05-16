@@ -11,6 +11,7 @@ DROP POLICY IF EXISTS "deductions_update" ON public.meal_deductions;
 -- 2. Create updated RBAC policies for 'meal_deductions'
 CREATE POLICY "deductions_select"
 ON public.meal_deductions FOR SELECT
+
 USING (tenant_id = public.get_tenant_id());
 
 CREATE POLICY "deductions_insert"

@@ -5,7 +5,7 @@ import LowStockAlerts from './LowStockAlerts'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Plus, Barcode, ClipboardList, AlertCircle, TrendingUp, PackageOpen } from 'lucide-react'
+import { Plus, Barcode, ClipboardList, AlertCircle, TrendingUp, PackageOpen, History } from 'lucide-react'
 
 /**
  * FILE 1: app/(web)/inventory/page.tsx
@@ -143,9 +143,9 @@ export default async function InventoryPage() {
             <AlertCircle className="h-6 w-6 text-red-500" />
             <span>View Expiry</span>
           </Link>
-          <Link href="/inventory/forecasting" className="flex flex-col items-center justify-center p-6 bg-card border hover:bg-accent transition-colors rounded-xl gap-2 font-medium">
-            <TrendingUp className="h-6 w-6 text-muted-foreground" />
-            <span>Procurement</span>
+          <Link href="/inventory/purchases" className="flex flex-col items-center justify-center p-6 bg-card border hover:bg-accent transition-colors rounded-xl gap-2 font-medium">
+            <History className="h-6 w-6 text-muted-foreground" />
+            <span>Tx History</span>
           </Link>
         </div>
       </div>
