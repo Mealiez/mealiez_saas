@@ -24,7 +24,7 @@ const SelectTrigger = React.forwardRef<
     )}
     {...props}
   >
-    {children}
+    <SelectPrimitive.Value placeholder={props.placeholder} />
     <SelectPrimitive.Icon asChild>
       <ChevronDown className="h-4 w-4 opacity-50" />
     </SelectPrimitive.Icon>
@@ -46,9 +46,9 @@ const SelectContent = React.forwardRef<
         )}
         {...props}
       >
-        <div className="p-1">
+        <SelectPrimitive.List className="p-1">
           {children}
-        </div>
+        </SelectPrimitive.List>
       </SelectPrimitive.Popup>
     </SelectPrimitive.Positioner>
   </SelectPrimitive.Portal>
