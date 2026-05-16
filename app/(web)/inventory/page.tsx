@@ -4,8 +4,8 @@ import StockOverview from './StockOverview'
 import LowStockAlerts from './LowStockAlerts'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Plus, Barcode, ClipboardList, AlertCircle, TrendingUp, PackageOpen, History } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Plus, Barcode, ClipboardList, AlertCircle, PackageOpen, History } from 'lucide-react'
 
 /**
  * FILE 1: app/(web)/inventory/page.tsx
@@ -15,7 +15,7 @@ export default async function InventoryPage() {
   const supabase = await createClient()
 
   // Fetch stock overview via RPC
-  const { data: stockData, error: stockError } = await supabase
+  const { data: stockData } = await supabase
     .rpc('get_stock_overview', {
       p_tenant_id: user.tenant_id
     })

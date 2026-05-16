@@ -4,11 +4,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Utensils, History, Package, AlertTriangle } from 'lucide-react'
+import { Utensils, History, AlertTriangle } from 'lucide-react'
 
 export default async function ItemDetailPage({ params }: { params: { id: string } }) {
-  const user = await requireAuth()
+  await requireAuth()
   const supabase = await createClient()
 
   // 1. Fetch item details with stock and category
