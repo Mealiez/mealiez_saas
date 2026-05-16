@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 export default function RecipeCostingPage() {
   const supabase = createClient()
   const [recipes, setRecipes] = useState<any[]>([])
-  const [selectedId, setSelectedId] = useState<string>('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [costData, setCostData] = useState<any[]>([])
   const [summary, setSummary] = useState<any>(null)
@@ -105,7 +105,7 @@ export default function RecipeCostingPage() {
             <CardContent className="pt-6">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Recipe</label>
-                <Select value={selectedId} onValueChange={setSelectedId}>
+                <Select value={selectedId} onValueChange={(val) => setSelectedId(val)}>
                   <SelectTrigger className="bg-white">
                     <SelectValue placeholder="Select recipe for analysis..." />
                   </SelectTrigger>

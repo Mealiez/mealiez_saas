@@ -130,8 +130,9 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
     }
   }
 
-  const handleModeChange = (id: string, mode: DeductionMode) => {
-    setItemModes(prev => ({ ...prev, [id]: mode }))
+  const handleModeChange = (id: string, mode: string | null) => {
+    if (!mode) return
+    setItemModes(prev => ({ ...prev, [id]: mode as DeductionMode }))
   }
 
   const handleConfirmDeduction = async () => {
@@ -380,7 +381,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
                       <TableCell>
                         <Select 
                           value={mode} 
-                          onValueChange={(val) => handleModeChange(req.inventory_item_id, val as DeductionMode)}
+                          onValueChange={(val) => handleModeChange(req.inventory_item_id, val)}
                           disabled={isDeductionCompleted}
                         >
                           <SelectTrigger className={`h-8 text-[10px] font-bold uppercase ${mode === 'present' ? 'border-primary text-primary' : 'text-muted-foreground'}`}>
