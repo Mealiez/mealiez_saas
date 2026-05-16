@@ -5,6 +5,7 @@ export const ROLE_RANK: Record<string, number> = {
 }
 
 export type TenantRole = 'admin' | 'manager' | 'member'
+export type UserRole = TenantRole
 
 export type AuthUser = {
   id:          string
