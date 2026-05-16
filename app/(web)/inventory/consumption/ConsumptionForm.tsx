@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, CheckCircle2, AlertTriangle, Loader2, RefreshCcw, Save, Activity, Lock, Unlock } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { AlertCircle, CheckCircle2, AlertTriangle, Loader2, RefreshCcw, Save, Activity, Lock, Unlock, Zap, BrainCircuit } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RecipeAssignment from './RecipeAssignment'
+
+type DeductionMode = 'present' | 'not_confirm'
 
 export default function ConsumptionForm({ initialSession, inventoryItems, tenantId }: { initialSession: any, inventoryItems: any[], tenantId: string }) {
   const supabase = createClient()
@@ -20,6 +23,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
   const [requirements, setRequirements] = useState<any[]>([])
   const [loadingReqs, setLoadingReqs] = useState(false)
   const [actuals, setActuals] = useState<Record<string, number>>({})
+  const [itemModes, setItemModes] = useState<Record<string, DeductionMode>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const actualAttendance = session?.actual_attendance || 0
@@ -38,14 +42,19 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
       if (error) throw error
       setRequirements(data || [])
       
-      // Update actuals with expected values only for new items
+      // Initialize actuals and modes
       const newActuals = { ...actuals }
+      const newModes = { ...itemModes }
       data?.forEach((req: any) => {
         if (newActuals[req.inventory_item_id] === undefined) {
           newActuals[req.inventory_item_id] = req.total_with_waste
         }
+        if (newModes[req.inventory_item_id] === undefined) {
+          newModes[req.inventory_item_id] = 'not_confirm' // Default to System expected
+        }
       })
       setActuals(newActuals)
+      setItemModes(newModes)
     } catch (err) {
       console.error('Failed to fetch requirements:', err)
     } finally {
@@ -68,7 +77,6 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
           filter: `id=eq.${session.id}`
         },
         (payload) => {
-          console.log('Session Update Received:', payload.new)
           setSession((prev: any) => ({ ...prev, ...payload.new }))
         }
       )
@@ -116,6 +124,14 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
 
   const handleActualChange = (id: string, val: string) => {
     setActuals(prev => ({ ...prev, [id]: parseFloat(val) || 0 }))
+    // Automatically switch to 'present' if the user manually edits the value
+    if (itemModes[id] === 'not_confirm') {
+      setItemModes(prev => ({ ...prev, [id]: 'present' }))
+    }
+  }
+
+  const handleModeChange = (id: string, mode: DeductionMode) => {
+    setItemModes(prev => ({ ...prev, [id]: mode }))
   }
 
   const handleConfirmDeduction = async () => {
@@ -126,24 +142,32 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
 
     setIsSubmitting(true)
     try {
-      // 1. Update session status
-      await supabase
-        .from('attendance_sessions')
-        .update({ status: 'deduction_completed' })
-        .eq('id', session.id)
+      // 1. Prepare deductions based on chosen mode
+      const deductions = requirements.map(req => {
+        const mode = itemModes[req.inventory_item_id] || 'not_confirm'
+        const finalQuantity = mode === 'present' 
+          ? (actuals[req.inventory_item_id] || 0) 
+          : req.total_with_waste
 
-      // 2. Prepare deductions
-      const deductions = requirements.map(req => ({
-        tenant_id: tenantId,
-        session_id: session.id,
-        inventory_item_id: req.inventory_item_id,
-        expected_quantity: req.total_with_waste,
-        actual_quantity: actuals[req.inventory_item_id] || 0,
-        unit: req.unit,
-        deduction_type: 'MEAL_USAGE'
-      }))
+        return {
+          tenant_id: tenantId,
+          session_id: session.id,
+          inventory_item_id: req.inventory_item_id,
+          expected_quantity: req.total_with_waste,
+          actual_quantity: finalQuantity,
+          unit: req.unit,
+          deduction_type: 'MEAL_USAGE'
+        }
+      })
 
       if (deductions.length > 0) {
+        // 2. Update session status
+        const { error: sErr } = await supabase
+          .from('attendance_sessions')
+          .update({ status: 'deduction_completed' })
+          .eq('id', session.id)
+        if (sErr) throw sErr
+
         const { error: dErr } = await supabase
           .from('meal_deductions')
           .insert(deductions)
@@ -162,9 +186,9 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
     }
   }
 
-  const isLocked = session.status === 'deduction_completed'
-  const canDeduct = session.status === 'finalized'
-  const isLive = session.status === 'attendance_live' || session.status === 'pending'
+  const isDeductionCompleted = session.status === 'deduction_completed'
+  const isAttendanceFinalized = session.status === 'finalized' || isDeductionCompleted
+  const canDeduct = isAttendanceFinalized && !isDeductionCompleted
 
   return (
     <div className="grid grid-cols-12 gap-6">
@@ -179,7 +203,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
                   <>
                     <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 border-slate-200">
                       <Lock className="h-3 w-3 mr-1" />
-                      Session Closed
+                      Attendance Locked
                     </Badge>
                     <Badge variant="outline" className="text-slate-400 bg-slate-50 border-slate-200 text-[10px]">
                       <Activity className="h-3 w-3 mr-1" />
@@ -218,7 +242,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
                     <div className="flex items-center gap-2">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground">Actual Attendance</p>
                       {!session.is_active && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold">CLOSED</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold tracking-tighter">LOCKED</span>
                       )}
                     </div>
                     <p className="text-3xl font-black">{actualAttendance}</p>
@@ -244,7 +268,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
                </div>
             </div>
 
-            {isLive && (
+            {!isAttendanceFinalized && (
               <Button 
                 variant="outline" 
                 className="w-full border-primary/30 text-primary hover:bg-primary/5"
@@ -256,10 +280,17 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
               </Button>
             )}
 
-            {session.status === 'finalized' && (
+            {isAttendanceFinalized && !isDeductionCompleted && (
               <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-800 text-xs flex gap-2">
                 <Unlock className="h-4 w-4 shrink-0" />
-                <p>Attendance finalized. Review ingredient variance and confirm inventory deduction below.</p>
+                <p>Attendance locked. Deduction form is now open for manual review and adjustment.</p>
+              </div>
+            )}
+
+            {isDeductionCompleted && (
+              <div className="p-3 bg-green-50 border border-green-100 rounded-lg text-green-800 text-xs flex gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <p>Session completed. Inventory deductions has been recorded in ledger.</p>
               </div>
             )}
 
@@ -270,6 +301,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
               tenantId={tenantId} 
               assignedRecipes={session.session_recipes || []}
               onUpdate={refreshSession}
+              disabled={isDeductionCompleted}
             />
           </CardContent>
         </Card>
@@ -300,18 +332,18 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
             <div>
               <CardTitle className="text-lg">Operational Review</CardTitle>
               <CardDescription>
-                {isLocked 
+                {isDeductionCompleted 
                   ? "Deduction completed. Ledger events created." 
-                  : "Review expected quantities derived from live attendance."}
+                  : "Compare system expected values with actual kitchen usage."}
               </CardDescription>
             </div>
             <Button 
               className="shadow-lg shadow-primary/20" 
               onClick={handleConfirmDeduction}
-              disabled={isSubmitting || loadingReqs || requirements.length === 0 || !canDeduct || isLocked}
+              disabled={isSubmitting || loadingReqs || requirements.length === 0 || !canDeduct || isDeductionCompleted}
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              {isLocked ? 'Deduction Recorded' : 'Finalize Deductions'}
+              {isDeductionCompleted ? 'Deduction Recorded' : 'Finalize Deductions'}
             </Button>
           </CardHeader>
           <div className="overflow-x-auto">
@@ -319,47 +351,76 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
               <TableHeader className="bg-muted/30">
                 <TableRow>
                   <TableHead>Ingredient</TableHead>
-                  <TableHead className="text-right">Expected (+Waste)</TableHead>
+                  <TableHead className="text-right">System Expected</TableHead>
+                  <TableHead className="w-48">Deduction Logic</TableHead>
                   <TableHead className="w-32 text-right">Actual Usage</TableHead>
-                  <TableHead className="text-right">Variance</TableHead>
-                  <TableHead className="text-right">Stock Status</TableHead>
+                  <TableHead className="text-right">Net Deduction</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {requirements.map((req) => {
-                  const actual = actuals[req.inventory_item_id] || 0
-                  const variance = actual - req.total_with_waste
-                  const isShortage = !req.stock_sufficient
+                  const mode = itemModes[req.inventory_item_id] || 'not_confirm'
+                  const actualValue = actuals[req.inventory_item_id] || 0
+                  const expectedValue = req.total_with_waste
+                  
+                  const finalValue = mode === 'present' ? actualValue : expectedValue
+                  const isShortage = finalValue > req.current_stock
 
                   return (
-                    <TableRow key={req.inventory_item_id} className={isShortage ? 'bg-red-50/30' : ''}>
+                    <TableRow key={req.inventory_item_id} className={isShortage && !isDeductionCompleted ? 'bg-red-50/30' : ''}>
                       <TableCell>
                         <div className="font-medium">{req.item_name}</div>
                         <div className="text-[10px] text-muted-foreground uppercase">{req.unit}</div>
                       </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {req.total_with_waste.toFixed(2)}
+                      
+                      <TableCell className="text-right font-mono text-muted-foreground">
+                        {expectedValue.toFixed(2)}
                       </TableCell>
+
+                      <TableCell>
+                        <Select 
+                          value={mode} 
+                          onValueChange={(val) => handleModeChange(req.inventory_item_id, val as DeductionMode)}
+                          disabled={isDeductionCompleted}
+                        >
+                          <SelectTrigger className={`h-8 text-[10px] font-bold uppercase ${mode === 'present' ? 'border-primary text-primary' : 'text-muted-foreground'}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="not_confirm">
+                              <div className="flex items-center gap-2">
+                                <Zap className="h-3 w-3 text-amber-500" />
+                                <span>Not Confirm (System)</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="present">
+                              <div className="flex items-center gap-2">
+                                <BrainCircuit className="h-3 w-3 text-primary" />
+                                <span>Present (Manual)</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      
                       <TableCell>
                         <Input 
                           type="number" 
                           step="0.001"
-                          className="h-8 text-right font-bold"
-                          disabled={isLocked}
-                          value={actual}
+                          className={`h-8 text-right font-bold ${mode === 'present' ? 'border-primary ring-1 ring-primary/20' : 'opacity-50'}`}
+                          disabled={isDeductionCompleted}
+                          value={actualValue}
                           onChange={(e) => handleActualChange(req.inventory_item_id, e.target.value)}
                         />
                       </TableCell>
-                      <TableCell className={`text-right font-mono font-medium ${variance > 0 ? 'text-red-600' : variance < 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
-                        {variance > 0 ? '+' : ''}{variance.toFixed(2)}
-                      </TableCell>
+
                       <TableCell className="text-right">
                         <div className="flex flex-col items-end">
-                          <span className={`text-xs font-bold ${isShortage ? 'text-red-600' : 'text-green-600'}`}>
-                            {isShortage ? 'Insufficient' : 'In Stock'}
+                          <span className={`text-sm font-bold ${mode === 'present' ? 'text-primary' : 'text-slate-600'}`}>
+                            {finalValue.toFixed(2)} {req.unit}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            Avail: {req.current_stock.toFixed(1)} {req.unit}
+                          <span className={`text-[9px] font-bold uppercase ${isShortage ? 'text-red-500' : 'text-green-500'}`}>
+                            {isShortage ? 'Stock Shortage' : 'Stock OK'}
                           </span>
                         </div>
                       </TableCell>
@@ -387,13 +448,17 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
         </Card>
 
         {/* Warning Indicators */}
-        {requirements.some(r => !r.stock_sufficient) && !isLocked && (
+        {requirements.some(r => {
+           const mode = itemModes[r.inventory_item_id] || 'not_confirm'
+           const val = mode === 'present' ? actuals[r.inventory_item_id] : r.total_with_waste
+           return val > r.current_stock
+        }) && !isDeductionCompleted && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-6 flex gap-3 text-red-800">
               <AlertTriangle className="h-5 w-5 shrink-0" />
               <div className="text-sm">
                 <p className="font-bold">Inventory Shortage Detected</p>
-                <p>Some ingredients required for this session exceed current stock levels. Deductions will result in negative stock if confirmed.</p>
+                <p>One or more selected deduction quantities exceed current stock levels. Review your 'Present' manual entries or system fallback.</p>
               </div>
             </CardContent>
           </Card>

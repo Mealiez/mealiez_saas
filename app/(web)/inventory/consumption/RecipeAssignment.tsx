@@ -17,9 +17,10 @@ interface RecipeAssignmentProps {
   tenantId: string
   assignedRecipes: any[]
   onUpdate: () => void
+  disabled?: boolean
 }
 
-export default function RecipeAssignment({ sessionId, tenantId, assignedRecipes, onUpdate }: RecipeAssignmentProps) {
+export default function RecipeAssignment({ sessionId, tenantId, assignedRecipes, onUpdate, disabled = false }: RecipeAssignmentProps) {
   const [availableRecipes, setAvailableRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
@@ -38,6 +39,7 @@ export default function RecipeAssignment({ sessionId, tenantId, assignedRecipes,
   }, [tenantId])
 
   const assignRecipe = async (recipeId: string) => {
+    if (disabled) return
     setLoading(true)
     try {
       const { error } = await supabase
@@ -57,6 +59,7 @@ export default function RecipeAssignment({ sessionId, tenantId, assignedRecipes,
   }
 
   const removeRecipe = async (id: string) => {
+    if (disabled) return
     try {
       const { error } = await supabase
         .from('session_recipes')
@@ -82,9 +85,11 @@ export default function RecipeAssignment({ sessionId, tenantId, assignedRecipes,
         {assignedRecipes.map((sr) => (
           <div key={sr.id} className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-medium">
             <span>{sr.recipes.name}</span>
-            <button onClick={() => removeRecipe(sr.id)} className="hover:text-primary/70">
-              <Trash2 className="h-3 w-3" />
-            </button>
+            {!disabled && (
+              <button onClick={() => removeRecipe(sr.id)} className="hover:text-primary/70">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
           </div>
         ))}
         {assignedRecipes.length === 0 && (
@@ -92,26 +97,28 @@ export default function RecipeAssignment({ sessionId, tenantId, assignedRecipes,
         )}
       </div>
 
-      <div className="pt-2">
-        <p className="text-xs font-medium mb-2">Assign Dish:</p>
-        <div className="grid grid-cols-2 gap-2">
-          {availableRecipes
-            .filter(r => !assignedRecipes.find(sr => sr.recipe_id === r.id))
-            .map(recipe => (
-              <Button 
-                key={recipe.id} 
-                variant="outline" 
-                size="sm" 
-                className="justify-start text-xs h-8"
-                onClick={() => assignRecipe(recipe.id)}
-                disabled={loading}
-              >
-                <Plus className="h-3 w-3 mr-2" />
-                {recipe.name}
-              </Button>
-            ))}
+      {!disabled && (
+        <div className="pt-2">
+          <p className="text-xs font-medium mb-2">Assign Dish:</p>
+          <div className="grid grid-cols-2 gap-2">
+            {availableRecipes
+              .filter(r => !assignedRecipes.find(sr => sr.recipe_id === r.id))
+              .map(recipe => (
+                <Button 
+                  key={recipe.id} 
+                  variant="outline" 
+                  size="sm" 
+                  className="justify-start text-xs h-8"
+                  onClick={() => assignRecipe(recipe.id)}
+                  disabled={loading}
+                >
+                  <Plus className="h-3 w-3 mr-2" />
+                  {recipe.name}
+                </Button>
+              ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
