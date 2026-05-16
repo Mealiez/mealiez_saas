@@ -20,20 +20,22 @@ export default async function MealsPage() {
   const canManage = ['admin', 'manager'].includes(user.role); // ← UPDATED: owner removed
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Meal Plans</h1>
-          <p className="text-gray-500 mt-1">Manage your mess meal schedules</p>
+    <div className="p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Meal Plans</h1>
+            <p className="text-gray-500 mt-1">Manage your mess meal schedules</p>
+          </div>
+          {canManage && <CreatePlanModal />}
         </div>
-        {canManage && <CreatePlanModal />}
-      </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <MealPlansTable 
-          initialPlans={plans || []} 
-          canManage={canManage} 
-        />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <MealPlansTable 
+            initialPlans={plans || []} 
+            canManage={canManage} 
+          />
+        </div>
       </div>
     </div>
   );

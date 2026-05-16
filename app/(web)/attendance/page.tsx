@@ -32,15 +32,17 @@ export default async function AttendancePage() {
   });
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
-          <p className="text-gray-500 font-medium">{formattedDate}</p>
+    <div className="p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Attendance Tracking</h1>
+            <p className="text-gray-500 font-medium">{formattedDate}</p>
+          </div>
         </div>
-      </div>
 
-      <AttendanceTable initialSessions={sessions || []} canManage={canManage} />
+        <AttendanceTable initialSessions={sessions || []} canManage={canManage} />
+      </div>
     </div>
   );
 }

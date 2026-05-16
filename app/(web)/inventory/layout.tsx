@@ -6,11 +6,13 @@ export default function InventoryLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="fixed inset-y-0 right-0 left-0 md:left-64 top-16 bg-white flex z-10">
+    <div className="flex h-full w-full bg-white overflow-hidden">
       <InventorySidebar />
       <main className="flex-1 overflow-y-auto bg-gray-50/30">
-        <div className="p-8">
-          {children}
+        <div className="p-8 h-full">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </div>
       </main>
     </div>
