@@ -42,7 +42,7 @@ export default function InventorySidebar() {
   return (
     <div 
       className={cn(
-        "relative flex flex-col border-r border-gray-200 bg-white transition-all duration-300 h-[calc(100vh-4rem)]",
+        "relative flex flex-col border-r border-gray-200 bg-white transition-all duration-300 h-full",
         isOpen ? "w-64" : "w-16"
       )}
     >
