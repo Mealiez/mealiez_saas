@@ -137,6 +137,36 @@ export type DismissAlertInput = z.infer<typeof DismissAlertSchema>
 
 export type TransactionType = 'purchase' | 'consumption' | 'adjustment' | 'wastage'
 
+/**
+ * SCHEMA 7 — CreateRecipeSchema
+ */
+export const CreateRecipeSchema = z.object({
+  name: z.string().min(2, 'Recipe name required').max(200).trim(),
+  meal_category: z.enum(['BREAKFAST', 'LUNCH', 'SNACKS', 'DINNER', 'ANY'], {
+    error: 'Invalid meal category'
+  }),
+  serving_size: z.number().int().min(1, 'Serving size must be at least 1').default(1),
+  description: z.string().max(1000).optional().nullable(),
+  is_active: z.boolean().default(true),
+  ingredients: z.array(z.object({
+    inventory_item_id: z.string().uuid(),
+    quantity_per_serving: z.number().positive('Quantity must be positive'),
+    unit: z.string().min(1, 'Unit required'),
+    wastage_percentage: z.number().min(0).max(100).default(0),
+    notes: z.string().max(500).optional().nullable()
+  })).min(1, 'At least one ingredient is required')
+})
+
+/**
+ * SCHEMA 8 — UpdateRecipeSchema
+ */
+export const UpdateRecipeSchema = CreateRecipeSchema.partial().extend({
+  id: z.string().uuid().optional()
+})
+
+export type CreateRecipeInput = z.infer<typeof CreateRecipeSchema>
+export type UpdateRecipeInput = z.infer<typeof UpdateRecipeSchema>
+
 export const TRANSACTION_LABELS: Record<TransactionType, string> = {
   purchase: 'Purchase',
   consumption: 'Consumption',

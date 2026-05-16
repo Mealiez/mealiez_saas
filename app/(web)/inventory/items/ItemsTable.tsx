@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 /**
  * FILE 6: app/(web)/inventory/items/ItemsTable.tsx
@@ -104,7 +105,9 @@ export default function ItemsTable({ initialItems }: ItemsTableProps) {
                 className={`transition-colors ${!item.is_active ? 'bg-muted/30 opacity-60' : 'hover:bg-muted/30'}`}
               >
                 <td className="px-4 py-4">
-                  <div className="font-medium">{item.name}</div>
+                  <Link href={`/inventory/items/${item.id}`} className="hover:underline">
+                    <div className="font-medium">{item.name}</div>
+                  </Link>
                   {item.description && (
                     <div className="text-xs text-muted-foreground line-clamp-1">{item.description}</div>
                   )}
