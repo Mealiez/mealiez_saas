@@ -7,7 +7,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client'
-import type { AuthUser } from '@/lib/auth/session'
+import type { AuthUser } from './roles'
 
 /**
  * getClientSession()

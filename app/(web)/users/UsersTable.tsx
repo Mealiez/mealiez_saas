@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import type { AuthUser } from '@/lib/auth/session'
-import { type UserRole, isAdminOrAbove } from '@/lib/auth/roles'
+import { type UserRole, isAdminOrAbove, type AuthUser } from '@/lib/auth/roles'
 import RoleUpdateDropdown from './RoleUpdateDropdown'
 
 type UserRow = {

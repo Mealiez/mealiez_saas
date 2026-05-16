@@ -12,6 +12,7 @@ export type AuthUser = {
   auth_id:     string
   tenant_id:   string
   full_name:   string
+  email?:      string
   role:        TenantRole
   is_active:   boolean
 }
