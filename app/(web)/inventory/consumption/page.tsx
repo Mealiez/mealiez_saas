@@ -77,13 +77,15 @@ export default async function MealConsumptionPage() {
               />
             ))
           ) : (
-            <Card className="bg-amber-50 border-amber-200">
-              <CardContent className="pt-6 flex gap-3 text-amber-800">
-                <Info className="h-5 w-5 shrink-0" />
-                <div className="text-sm">
-                  <p className="font-bold">No live sessions found.</p>
-                  <p>Start a new attendance session to begin tracking consumption in real-time.</p>
+            <Card className="bg-muted/20 border-dashed">
+              <CardContent className="pt-12 pb-12 flex flex-col items-center justify-center text-muted-foreground">
+                <div className="bg-muted rounded-full p-4 mb-4">
+                  <Utensils className="h-8 w-8 opacity-20" />
                 </div>
+                <p className="font-bold text-lg text-foreground">No active session now</p>
+                <p className="text-sm max-w-xs text-center mt-1">
+                  There are no ongoing attendance sessions. Check the History tab for recent conclusions or start a session in the Meals module.
+                </p>
               </CardContent>
             </Card>
           )}
