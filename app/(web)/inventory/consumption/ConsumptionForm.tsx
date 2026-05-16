@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { AlertCircle, CheckCircle2, AlertTriangle, Loader2, RefreshCcw, Save } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { AlertCircle, CheckCircle2, AlertTriangle, Loader2, RefreshCcw, Save, Activity, Lock, Unlock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RecipeAssignment from './RecipeAssignment'
 
@@ -14,12 +15,17 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
   const supabase = createClient()
   const router = useRouter()
   const [session, setSession] = useState(initialSession)
-  const [actualAttendance, setActualAttendance] = useState<number>(session?.actual_attendance || session?.expected_attendance || 0)
+  const [isRealtime, setIsRealtime] = useState(false)
   
   const [requirements, setRequirements] = useState<any[]>([])
   const [loadingReqs, setLoadingReqs] = useState(false)
   const [actuals, setActuals] = useState<Record<string, number>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const actualAttendance = session?.actual_attendance || 0
+  const expectedAttendance = session?.expected_attendance || 0
+  const variance = actualAttendance - expectedAttendance
+  const completionPct = expectedAttendance > 0 ? Math.round((actualAttendance / expectedAttendance) * 100) : 0
 
   const fetchRequirements = async () => {
     if (!session?.id) return
@@ -32,7 +38,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
       if (error) throw error
       setRequirements(data || [])
       
-      // Initialize actuals with expected values if not already set
+      // Update actuals with expected values only for new items
       const newActuals = { ...actuals }
       data?.forEach((req: any) => {
         if (newActuals[req.inventory_item_id] === undefined) {
@@ -47,6 +53,34 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
     }
   }
 
+  // Realtime Attendance Sync
+  useEffect(() => {
+    if (!session?.id) return
+
+    const channel = supabase
+      .channel(`session-${session.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'attendance_sessions',
+          filter: `id=eq.${session.id}`
+        },
+        (payload) => {
+          console.log('Session Update Received:', payload.new)
+          setSession((prev: any) => ({ ...prev, ...payload.new }))
+        }
+      )
+      .subscribe((status) => {
+        setIsRealtime(status === 'SUBSCRIBED')
+      })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [session.id])
+
   useEffect(() => {
     fetchRequirements()
   }, [session.id, actualAttendance])
@@ -60,17 +94,42 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
     if (data) setSession(data)
   }
 
+  const handleFinalizeAttendance = async () => {
+    setIsSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('attendance_sessions')
+        .update({ 
+          status: 'finalized',
+          is_active: false 
+        })
+        .eq('id', session.id)
+      
+      if (error) throw error
+      await refreshSession()
+    } catch (e: any) {
+      alert("Failed to finalize attendance: " + e.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleActualChange = (id: string, val: string) => {
     setActuals(prev => ({ ...prev, [id]: parseFloat(val) || 0 }))
   }
 
   const handleConfirmDeduction = async () => {
+    if (session.status !== 'finalized') {
+      alert("Attendance must be finalized before processing deductions.")
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      // 1. Update actual attendance in session
+      // 1. Update session status
       await supabase
         .from('attendance_sessions')
-        .update({ actual_attendance: actualAttendance, status: 'COMPLETED' })
+        .update({ status: 'deduction_completed' })
         .eq('id', session.id)
 
       // 2. Prepare deductions
@@ -103,19 +162,49 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
     }
   }
 
+  const isLocked = session.status === 'deduction_completed'
+  const canDeduct = session.status === 'finalized'
+  const isLive = session.status === 'attendance_live' || session.status === 'pending'
+
   return (
     <div className="grid grid-cols-12 gap-6">
       {/* Left Sidebar - Session Controls */}
       <div className="col-span-12 lg:col-span-4 space-y-6">
         <Card className="shadow-sm border-primary/20">
-          <CardHeader className="pb-3 bg-muted/30 border-b">
+          <CardHeader className="pb-3 bg-muted/30 border-b flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Session Intelligence</CardTitle>
+            {isRealtime ? (
+              <div className="flex items-center gap-2">
+                {!session.is_active ? (
+                  <>
+                    <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 border-slate-200">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Session Closed
+                    </Badge>
+                    <Badge variant="outline" className="text-slate-400 bg-slate-50 border-slate-200 text-[10px]">
+                      <Activity className="h-3 w-3 mr-1" />
+                      Sync Idle
+                    </Badge>
+                  </>
+                ) : (
+                  <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200 animate-pulse text-[10px]">
+                    <Activity className="h-3 w-3 mr-1" />
+                    Live Sync
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <Badge variant="outline" className="text-amber-600 bg-amber-50 border-amber-200 text-[10px]">
+                <RefreshCcw className="h-3 w-3 mr-1" />
+                Connecting
+              </Badge>
+            )}
           </CardHeader>
           <CardContent className="pt-4 space-y-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground mb-1 font-bold uppercase text-[10px]">Meal Type</p>
-                <p className="font-semibold">{session?.meal_type}</p>
+                <p className="font-semibold capitalize">{session?.meal_type}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1 font-bold uppercase text-[10px]">Date</p>
@@ -123,23 +212,56 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Actual Attendance</label>
-              <div className="flex gap-2">
-                <Input 
-                  type="number" 
-                  value={actualAttendance} 
-                  onChange={(e) => setActualAttendance(parseInt(e.target.value) || 0)} 
-                  className="font-bold text-lg h-12"
-                />
-                <Button variant="outline" className="h-12" onClick={fetchRequirements}>
-                  <RefreshCcw className={`h-4 w-4 ${loadingReqs ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground italic">
-                * Expected: {session?.expected_attendance || 0}
-              </p>
+            <div className="p-4 bg-muted/20 rounded-xl space-y-3">
+               <div className="flex justify-between items-end">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground">Actual Attendance</p>
+                      {!session.is_active && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold">CLOSED</span>
+                      )}
+                    </div>
+                    <p className="text-3xl font-black">{actualAttendance}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Expected</p>
+                    <p className="text-lg font-semibold">{expectedAttendance}</p>
+                  </div>
+               </div>
+               
+               <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-primary h-full transition-all duration-500" 
+                    style={{ width: `${Math.min(completionPct, 100)}%` }} 
+                  />
+               </div>
+
+               <div className="flex justify-between text-[10px] font-bold uppercase">
+                  <span className={variance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    {variance > 0 ? '+' : ''}{variance} Variance
+                  </span>
+                  <span className="text-muted-foreground">{completionPct}% Complete</span>
+               </div>
             </div>
+
+            {isLive && (
+              <Button 
+                variant="outline" 
+                className="w-full border-primary/30 text-primary hover:bg-primary/5"
+                onClick={handleFinalizeAttendance}
+                disabled={isSubmitting || actualAttendance === 0}
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                Finalize Attendance
+              </Button>
+            )}
+
+            {session.status === 'finalized' && (
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-800 text-xs flex gap-2">
+                <Unlock className="h-4 w-4 shrink-0" />
+                <p>Attendance finalized. Review ingredient variance and confirm inventory deduction below.</p>
+              </div>
+            )}
 
             <hr />
 
@@ -177,15 +299,19 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
           <CardHeader className="pb-3 border-b flex flex-row items-center justify-between bg-muted/10">
             <div>
               <CardTitle className="text-lg">Operational Review</CardTitle>
-              <CardDescription>Review expected quantities and adjust based on actual kitchen usage.</CardDescription>
+              <CardDescription>
+                {isLocked 
+                  ? "Deduction completed. Ledger events created." 
+                  : "Review expected quantities derived from live attendance."}
+              </CardDescription>
             </div>
             <Button 
               className="shadow-lg shadow-primary/20" 
               onClick={handleConfirmDeduction}
-              disabled={isSubmitting || loadingReqs || requirements.length === 0}
+              disabled={isSubmitting || loadingReqs || requirements.length === 0 || !canDeduct || isLocked}
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Finalize Deductions
+              {isLocked ? 'Deduction Recorded' : 'Finalize Deductions'}
             </Button>
           </CardHeader>
           <div className="overflow-x-auto">
@@ -219,6 +345,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
                           type="number" 
                           step="0.001"
                           className="h-8 text-right font-bold"
+                          disabled={isLocked}
                           value={actual}
                           onChange={(e) => handleActualChange(req.inventory_item_id, e.target.value)}
                         />
@@ -242,7 +369,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
                 {requirements.length === 0 && !loadingReqs && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">
-                      Assign recipes and set attendance to calculate requirements.
+                      Assign recipes to calculate requirements.
                     </TableCell>
                   </TableRow>
                 )}
@@ -260,7 +387,7 @@ export default function ConsumptionForm({ initialSession, inventoryItems, tenant
         </Card>
 
         {/* Warning Indicators */}
-        {requirements.some(r => !r.stock_sufficient) && (
+        {requirements.some(r => !r.stock_sufficient) && !isLocked && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-6 flex gap-3 text-red-800">
               <AlertTriangle className="h-5 w-5 shrink-0" />

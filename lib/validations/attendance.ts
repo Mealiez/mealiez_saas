@@ -27,6 +27,7 @@ export const UpdateSessionSchema = z.object({
     .optional(),
   is_active: z.boolean().optional(),
   scan_mode: z.enum(['session', 'member']).optional(),
+  status: z.enum(['pending', 'attendance_live', 'finalized', 'deduction_completed']).optional(),
 });
 
 export const MarkAttendanceSchema = z.object({
