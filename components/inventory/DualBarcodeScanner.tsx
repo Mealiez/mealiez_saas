@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning'
+import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning'
 import WebBarcodeScanner from 'react-qr-barcode-scanner'
 import { Button } from '@/components/ui/button'
 import { Camera, Flashlight, FlashlightOff, X } from 'lucide-react'
@@ -60,10 +60,11 @@ export function DualBarcodeScanner({ onScan, onClose }: DualBarcodeScannerProps)
       setIsScanning(true)
       document.body.classList.add('bg-transparent') // Important for native scanner
       
-      const listener = await BarcodeScanner.addListener('barcodeScanned', async result => {
-        if (result.barcode?.displayValue) {
+      const _listener = await BarcodeScanner.addListener('barcodesScanned', async result => {
+        const barcode = result.barcodes[0]
+        if (barcode?.displayValue) {
           await stopNativeScan()
-          onScan(result.barcode.displayValue)
+          onScan(barcode.displayValue)
         }
       })
 

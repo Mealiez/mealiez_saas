@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import RecipesTable from './RecipesTable'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Plus, Utensils } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 export default async function RecipesPage() {
   const user = await requireAuth()

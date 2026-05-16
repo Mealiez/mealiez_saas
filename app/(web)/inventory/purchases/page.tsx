@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import TransactionsTable from './TransactionsTable'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Plus, ShoppingCart, History } from 'lucide-react'
+import { Plus, History } from 'lucide-react'
 
 export default async function PurchaseHistoryPage() {
   const user = await requireAuth()

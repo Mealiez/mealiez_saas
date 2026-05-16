@@ -20,6 +20,7 @@ import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { InviteUserSchema } from '@/lib/validations/users'
+import { isAdminOrAbove, canAssignRole } from '@/lib/auth/roles'
 import crypto from 'crypto'
 
 // Create a Supabase admin client using service role key
@@ -33,19 +34,6 @@ const supabaseAdmin = createSupabaseAdminClient(
     }
   }
 )
-
-const ROLE_RANK: Record<string, number> = {
-  admin:   3,
-  manager: 2,
-  member:  1
-}
-
-function canAssignRole(
-  inviterRole: string,
-  targetRole: string
-): boolean {
-  return ROLE_RANK[inviterRole] > ROLE_RANK[targetRole]
-}
 
 function generateTempPassword(): string {
   return crypto.randomUUID().replace(/-/g, '') + 'Aa1!'

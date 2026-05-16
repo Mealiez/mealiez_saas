@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Scale } from 'lucide-react'
 
 interface Ingredient {
@@ -16,10 +15,9 @@ interface Ingredient {
 
 interface ScalingPreviewProps {
   ingredients: Ingredient[]
-  baseServingSize: number
 }
 
-export default function RecipeScalingPreview({ ingredients, baseServingSize }: ScalingPreviewProps) {
+export default function RecipeScalingPreview({ ingredients }: ScalingPreviewProps) {
   const [previewServings, setPreviewServings] = useState(100)
   
   const presets = [50, 100, 250, 500]

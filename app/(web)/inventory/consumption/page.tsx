@@ -38,13 +38,6 @@ export default async function MealConsumptionPage() {
     s.status === 'finalized' || s.status === 'deduction_completed'
   ) || []
 
-  // Fetch inventory items for manual addition if needed
-  const { data: inventoryItems } = await supabase
-    .from('inventory_items')
-    .select('id, name, unit')
-    .eq('tenant_id', user.tenant_id)
-    .eq('is_active', true)
-
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
@@ -72,7 +65,6 @@ export default async function MealConsumptionPage() {
               <ConsumptionForm 
                 key={session.id}
                 initialSession={session}
-                inventoryItems={inventoryItems || []}
                 tenantId={user.tenant_id}
               />
             ))

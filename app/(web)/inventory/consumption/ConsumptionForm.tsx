@@ -8,13 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertCircle, CheckCircle2, AlertTriangle, Loader2, RefreshCcw, Save, Activity, Lock, Unlock, Zap, BrainCircuit } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Loader2, RefreshCcw, Save, Activity, Lock, Unlock, Zap, BrainCircuit } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RecipeAssignment from './RecipeAssignment'
 
 type DeductionMode = 'present' | 'not_confirm'
 
-export default function ConsumptionForm({ initialSession, inventoryItems, tenantId }: { initialSession: any, inventoryItems: any[], tenantId: string }) {
+export default function ConsumptionForm({ initialSession, tenantId }: { initialSession: any, tenantId: string }) {
   const supabase = createClient()
   const router = useRouter()
   const [session, setSession] = useState(initialSession)

@@ -207,7 +207,6 @@ export default function RecipeComposer({ initialData, tenantId }: RecipeComposer
 
         <RecipeScalingPreview 
           ingredients={ingredients}
-          baseServingSize={servingSize}
         />
       </div>
 

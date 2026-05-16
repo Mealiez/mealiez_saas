@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Check, Plus, Trash2, Utensils } from 'lucide-react'
+import { Plus, Trash2, Utensils } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 
 interface Recipe {
   id: string
@@ -24,7 +23,6 @@ export default function RecipeAssignment({ sessionId, tenantId, assignedRecipes,
   const [availableRecipes, setAvailableRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
-  const router = useRouter()
 
   useEffect(() => {
     const fetchRecipes = async () => {
