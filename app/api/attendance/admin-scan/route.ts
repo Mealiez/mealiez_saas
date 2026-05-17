@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Role check: Only manager+ can use admin scanner
-  if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+  if (!['admin', 'manager'].includes(currentUser.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json({
       error: 'QR code belongs to different organization',
+    
       code: 'TENANT_MISMATCH'
     }, { status: 403 })
   }
@@ -334,3 +335,4 @@ export async function POST(request: NextRequest) {
     }
   }, { status: 201 })
 }
+

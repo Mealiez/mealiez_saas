@@ -42,7 +42,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
       )
     : null;
 
-  const canManage = ['owner', 'admin', 'manager'].includes(user.role);
+  const canManage = ['admin', 'manager'].includes(user.role);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -146,3 +146,4 @@ export default async function SessionPage({ params }: { params: { id: string } }
     </div>
   );
 }
+

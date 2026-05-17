@@ -67,7 +67,7 @@ function signWith(data: string, secret: string): string {
  * Encodes a payload into a signed token string.
  * Format: base64url(payload).signature
  */
-function encodeWith(payload: any, secret: string): string {
+function encodeWith(payload: unknown, secret: string): string {
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const sig = signWith(data, secret);
   return `${data}.${sig}`;
@@ -76,7 +76,7 @@ function encodeWith(payload: any, secret: string): string {
 /**
  * Decodes and verifies a token string signature.
  */
-function decodeWith(token: string, secret: string): { valid: true; payload: any; data: string } | { valid: false; reason: string } {
+function decodeWith(token: string, secret: string): { valid: true; payload: unknown; data: string } | { valid: false; reason: string } {
   // STEP 1: Split token on '.'
   const parts = token.split('.');
   if (parts.length !== 2) {
@@ -100,7 +100,7 @@ function decodeWith(token: string, secret: string): { valid: true; payload: any;
   }
 
   // STEP 3: Decode payload
-  let payload: any;
+  let payload: unknown;
   try {
     payload = JSON.parse(
       Buffer.from(data, 'base64url').toString('utf8')

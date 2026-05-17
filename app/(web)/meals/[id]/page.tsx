@@ -23,7 +23,7 @@ export default async function MealPlanDetailsPage({ params }: { params: { id: st
 
   if (!plan) notFound();
 
-  const canManage = ['owner', 'admin', 'manager'].includes(user.role);
+  const canManage = ['admin', 'manager'].includes(user.role);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -69,3 +69,4 @@ export default async function MealPlanDetailsPage({ params }: { params: { id: st
     </div>
   );
 }
+

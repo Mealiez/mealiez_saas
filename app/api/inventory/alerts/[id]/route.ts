@@ -31,7 +31,7 @@ export async function PATCH(
     if (!isEnabled) return featureDisabledResponse()
 
     // Role check: manager+ only
-    if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+    if (!['admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -63,3 +63,4 @@ export async function PATCH(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

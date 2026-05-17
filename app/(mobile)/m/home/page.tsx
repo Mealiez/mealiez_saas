@@ -22,7 +22,7 @@ export default function MobileHomePage() {
     // useAuthGuard's onAuthStateChange will handle redirect to /m/login
   }
 
-  const isManagerPlus = ['owner', 'admin', 'manager'].includes(user.role)
+  const isManagerPlus = ['admin', 'manager'].includes(user.role)
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col p-6 space-y-8">

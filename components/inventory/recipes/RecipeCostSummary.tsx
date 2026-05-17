@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingDown, TrendingUp, CircleDollarSign } from 'lucide-react'
+import { CircleDollarSign } from 'lucide-react'
 
 interface CostSummaryProps {
   totalCost: number

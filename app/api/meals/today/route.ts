@@ -9,6 +9,8 @@ import { getCurrentUser } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { checkFeatureEnabled } from '@/lib/features/gate';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const today = new Date().toISOString().split('T')[0];

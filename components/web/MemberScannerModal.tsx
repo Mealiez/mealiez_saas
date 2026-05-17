@@ -55,7 +55,7 @@ export default function MemberScannerModal({ onSuccess }: MemberScannerModalProp
         setIsProcessing(false);
         if (onSuccess) onSuccess();
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Connection error. Please try again.');
       setIsProcessing(false);
     }
@@ -88,7 +88,7 @@ export default function MemberScannerModal({ onSuccess }: MemberScannerModalProp
     animFrameRef.current = requestAnimationFrame(tick);
   }, [processToken]);
 
-  const startCamera = async () => {
+  const startCamera = useCallback(async () => {
     setIsScanning(true);
     setResult(null);
     setError(null);
@@ -101,11 +101,11 @@ export default function MemberScannerModal({ onSuccess }: MemberScannerModalProp
         videoRef.current.srcObject = stream;
         animFrameRef.current = requestAnimationFrame(tick);
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Could not access camera. Please check permissions.');
       setIsScanning(false);
     }
-  };
+  }, [tick]);
 
   useEffect(() => {
     if (isOpen) {
@@ -114,7 +114,7 @@ export default function MemberScannerModal({ onSuccess }: MemberScannerModalProp
       stopCamera();
     }
     return () => stopCamera();
-  }, [isOpen]);
+  }, [isOpen, startCamera, stopCamera]);
 
   return (
     <>

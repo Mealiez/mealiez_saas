@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 
+export const dynamic = 'force-dynamic'
+
 /*
  * Gas Cylinder API
  * Feature flag: 'inventory_management'

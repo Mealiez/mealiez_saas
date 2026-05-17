@@ -13,7 +13,7 @@ export default async function InventoryItemsPage() {
   const user = await requireAuth()
 
   // Role check — admin+ only can access items page
-  if (!['owner', 'admin'].includes(user.role)) {
+  if (!['admin'].includes(user.role)) {
     redirect('/inventory')
   }
 
@@ -60,3 +60,4 @@ export default async function InventoryItemsPage() {
     </div>
   )
 }
+

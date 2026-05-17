@@ -3,7 +3,7 @@
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
-import { UNIT_LABELS } from '@/lib/validations/inventory'
+
 
 interface IngredientRowProps {
   ingredient: {

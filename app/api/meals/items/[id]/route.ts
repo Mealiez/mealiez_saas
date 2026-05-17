@@ -17,7 +17,7 @@ export async function PATCH(
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'meal_management');
     if (!isEnabled) return featureDisabledResponse();
 
-    if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+    if (!['admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -103,7 +103,7 @@ export async function DELETE(
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'meal_management');
     if (!isEnabled) return featureDisabledResponse();
 
-    if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+    if (!['admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -121,3 +121,4 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+

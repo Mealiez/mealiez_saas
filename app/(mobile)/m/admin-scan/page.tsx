@@ -38,7 +38,7 @@ interface ScanResult {
 
 export default function AdminScanMobilePage() {
   const { user, isLoading: authLoading, isAuthorized } = useAuthGuard({
-    requiredRole: ['owner', 'admin', 'manager']
+    requiredRole: ['admin', 'manager']
   })
 
   const [sessions, setSessions] = useState<Session[]>([])

@@ -9,6 +9,8 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 
+export const dynamic = 'force-dynamic'
+
 const FEATURE_KEY = 'inventory_management'
 
 /**

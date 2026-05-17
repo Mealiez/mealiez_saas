@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     if (!isEnabled) return featureDisabledResponse()
 
     // Role check: admin+ only
-    if (!['owner', 'admin'].includes(currentUser.role)) {
+    if (!['admin'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
@@ -92,3 +92,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
