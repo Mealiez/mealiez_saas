@@ -3,8 +3,8 @@
  * Import only in API routes and server components.
  */
 
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
  * Checks if a specific feature is enabled for a given tenant.
@@ -19,17 +19,6 @@ export async function checkFeatureEnabled(
     console.error('[FEATURE GATE] Missing tenantId or featureKey');
     return false;
   }
-
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { 
-      auth: { 
-        autoRefreshToken: false,
-        persistSession: false 
-      } 
-    }
-  );
 
   const { data, error } = await supabaseAdmin
     .rpc('is_feature_enabled', {

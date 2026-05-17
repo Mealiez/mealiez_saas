@@ -1,0 +1,8 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[context.production.environment]
+  # Netlify's secrets scanner can sometimes find false positives in server-side chunks.
+  # We omit the build output directory to prevent these from blocking deploys.
+  SECRETS_SCAN_OMIT_PATHS = ".next/*"

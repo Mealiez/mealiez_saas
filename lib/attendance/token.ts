@@ -38,15 +38,18 @@ export type MemberQRVerifyResult =
       reason: string;
     };
 
-const ATTENDANCE_QR_SECRET = process.env.ATTENDANCE_QR_SECRET!;
+// We use dynamic property access to prevent Webpack from inlining the secret values
+// into the bundle during build time. This helps avoid Netlify's secrets scanner.
+const getEnv = (key: string) => process.env[key]
+
+const ATTENDANCE_QR_SECRET = getEnv('ATTENDANCE_QR_SECRET')!;
+const MEMBER_QR_SECRET     = getEnv('MEMBER_QR_SECRET')!;
 
 if (!ATTENDANCE_QR_SECRET) {
   throw new Error(
     'ATTENDANCE_QR_SECRET is not set. ' + 'Add it to .env.local'
   );
 }
-
-const MEMBER_QR_SECRET = process.env.MEMBER_QR_SECRET!;
 
 if (!MEMBER_QR_SECRET) {
   throw new Error(

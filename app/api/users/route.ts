@@ -16,24 +16,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/auth/session'
 import { InviteUserSchema } from '@/lib/validations/users'
 import { isAdminOrAbove, canAssignRole } from '@/lib/auth/roles'
 import crypto from 'crypto'
-
-// Create a Supabase admin client using service role key
-const supabaseAdmin = createSupabaseAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
 
 function generateTempPassword(): string {
   return crypto.randomUUID().replace(/-/g, '') + 'Aa1!'
