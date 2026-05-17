@@ -1,5 +1,5 @@
 import { requireSuperAdmin } from '@/lib/auth/guards'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 
 const FEATURE_KEYS = [
@@ -13,6 +13,8 @@ const FEATURE_KEYS = [
 
 export default async function FeatureControlPage() {
   const superUser = await requireSuperAdmin()
+  
+  const supabaseAdmin = createAdminClient()
 
   // Fetch all tenants
   const { data: tenants } = await supabaseAdmin

@@ -1,10 +1,12 @@
 import { requireSuperAdmin } from '@/lib/auth/guards'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import MessPlanBadge from './MessPlanBadge'
 
 export default async function AllMessesPage() {
   const superUser = await requireSuperAdmin()
+  
+  const supabaseAdmin = createAdminClient()
 
   // Fetch tenants
   const { data: tenants } = await supabaseAdmin

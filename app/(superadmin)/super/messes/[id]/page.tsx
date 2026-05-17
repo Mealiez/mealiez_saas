@@ -1,18 +1,23 @@
 import { requireSuperAdmin } from '@/lib/auth/guards'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import MessPlanBadge from '../MessPlanBadge'
 import FeatureToggle from './FeatureToggle'
 
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+/**
+ * PRODUCTION-GRADE PAGE: Mess Detail
+ * 
+ * This page uses the high-privilege createAdminClient() factory.
+ * Lazy initialization is enforced inside the Server Component to ensure
+ * side-effect free builds and secure credential handling.
+ */
 
 export default async function MessDetailPage({ params }: { params: { id: string } }) {
   const superUser = await requireSuperAdmin()
+  
+  // Lazy-initialize the admin client inside the request scope.
+  const supabaseAdmin = createAdminClient()
 
   // Fetch tenant + users + features in parallel
   const [tenantRes, usersRes, featuresRes] = await Promise.all([

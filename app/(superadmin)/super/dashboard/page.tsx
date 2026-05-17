@@ -1,11 +1,13 @@
 import { requireSuperAdmin } from '@/lib/auth/guards'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import PlatformStats from './PlatformStats'
 import Link from 'next/link'
 
 export default async function SuperDashboardPage() {
   const superUser = await requireSuperAdmin()
   // redirects if not super admin
+  
+  const supabaseAdmin = createAdminClient()
 
   // Fetch data server-side
   const [tenantsResult, usersResult, attendanceResult] = await Promise.all([
