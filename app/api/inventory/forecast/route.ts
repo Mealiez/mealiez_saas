@@ -3,18 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for complex inventory forecasting logic.
+ */
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /*
  * Shortage Forecasting API
- * Feature flag: inventory_management
- * Roles: admin + manager
- *
- * GET /api/inventory/forecast
- *   Returns shortage forecast for all active items.
- *   Powered by run_shortage_forecast() DB function.
- *   Query params:
- *     days: lookback window (default 30)
  */
 
 export async function GET(request: NextRequest) {

@@ -1,52 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/auth/session'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for barcode lookup and external API integration.
+ */
+export const runtime = 'nodejs'
+
 /*
  * Barcode Lookup API
- * Feature flag: inventory_management
- * Roles: admin + manager
- *
- * Step 1: local product_catalog lookup (instant)
- * Step 2: Open Food Facts (external, if not found)
- * Step 3: Cache result in product_catalog via service role
- *
- * IMPORTANT:
- * External API calls are made server-side ONLY.
- * No API keys exposed to client.
- * product_catalog INSERT uses service_role client.
- * Barcode data is cached forever (immutable product data).
  */
-
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
-
-interface BarcodeProduct {
-  product_name: string
-  brand: string | null
-  category: string | null
-  package_size: number | null
-  unit: string | null
-  image_url: string | null
-  default_shelf_life_days: number | null
-  source: string
-}
 
 async function lookupOpenFoodFacts(
   barcode: string
-): Promise<BarcodeProduct | null> {
+): Promise<any | null> {
   try {
     const res = await fetch(
       `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
       {
         headers: { 'User-Agent': 'Mealiez/1.0' },
         signal: AbortSignal.timeout(5000)
-        // 5 second timeout
       }
     )
 
@@ -58,7 +34,6 @@ async function lookupOpenFoodFacts(
 
     const p = data.product
 
-    // Extract quantity: "5 kg" → { size: 5, unit: 'kg' }
     let packageSize: number | null = null
     let unit: string | null = null
     if (p.quantity) {
@@ -77,7 +52,6 @@ async function lookupOpenFoodFacts(
       unit,
       image_url: p.image_small_url ?? p.image_url ?? null,
       default_shelf_life_days: null,
-      // Open Food Facts doesn't provide shelf life
       source: 'open_food_facts'
     }
   } catch (error) {
@@ -139,17 +113,14 @@ export async function GET(
   }
 
   // STEP 7: Cache result in product_catalog
-  const { error: insertError } = await supabaseAdmin
+  const supabaseAdmin = createAdminClient()
+  await supabaseAdmin
     .from('product_catalog')
     .insert({
       barcode,
       ...external,
       verified: false
     })
-
-  // On conflict: already cached by concurrent request
-  // (Constraint violation check isn't strictly necessary due to logic above,
-  // but supabaseAdmin will return an error if it fails)
 
   return NextResponse.json({
     found: true,

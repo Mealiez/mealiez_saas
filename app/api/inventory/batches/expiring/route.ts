@@ -3,12 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for perishable inventory management.
+ */
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /*
  * GET: batches expiring soon
- * Feature flag: inventory_management
- * Roles: admin + manager
  */
 
 export async function GET(request: NextRequest) {
@@ -32,7 +35,6 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
   // STEP 4: Fetch from expiring_batches_view
-  // We join inventory_batches to get purchase_price for value calculation
   const { data, error } = await supabase
     .from('expiring_batches_view')
     .select(`

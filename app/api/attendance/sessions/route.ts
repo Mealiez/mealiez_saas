@@ -5,6 +5,12 @@ import { CreateSessionSchema } from '@/lib/validations/attendance';
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate';
 import { generateQRToken } from '@/lib/attendance/token';
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for session management and QR token generation.
+ */
+export const runtime = 'nodejs'
+
 /*
  * SECURITY: Attendance Sessions API
  * tenant_id sourced from JWT only.
@@ -145,4 +151,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-

@@ -4,10 +4,14 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 import { z } from 'zod'
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for sensitive inventory batch status changes.
+ */
+export const runtime = 'nodejs'
+
 /*
  * Batch Management API
- * Feature flag: inventory_management
- * Roles: admin + manager
  */
 
 const UpdateBatchSchema = z.object({

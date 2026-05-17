@@ -1,31 +1,20 @@
 /*
  * SECURITY: Admin Scan (Mode B Attendance)
- *
- * In Mode B, the admin holds the scanner.
- * The member holds their static QR.
- *
- * Validation chain:
- *   1. Verify QR signature (anti-tamper)
- *   2. Verify tenant_id matches admin's tenant
- *   3. Verify member is active in this tenant
- *   4. Verify QR version matches DB (anti-replay
- *      after regeneration)
- *   5. Verify session exists and is active
- *   6. Verify session is in 'member' scan mode
- *   7. Mark attendance (idempotent)
- *   8. Write to qr_scan_audit_log
- *
- * All outcomes (success AND failure) are audit-logged.
- * This is non-negotiable for enterprise compliance.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/auth/session'
 import { verifyMemberQRToken } from '@/lib/attendance/token'
 import { checkFeatureEnabled } from '@/lib/features/gate'
 import crypto from 'node:crypto'
+
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for stable crypto and admin operations.
+ */
+export const runtime = 'nodejs'
 
 async function writeAuditLog(params: {
   tenant_id: string
@@ -37,6 +26,7 @@ async function writeAuditLog(params: {
   ip_address: string | null
   user_agent: string | null
 }): Promise<void> {
+  const supabaseAdmin = createAdminClient()
   try {
     await supabaseAdmin
       .from('qr_scan_audit_log')
@@ -50,6 +40,7 @@ async function writeAuditLog(params: {
 }
 
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = createAdminClient()
   const currentUser = await getCurrentUser()
   if (!currentUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -91,7 +82,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
-  // STEP 4: Verify QR signature
   const qrResult = verifyMemberQRToken(member_token)
   
   if (!qrResult.valid) {
@@ -109,7 +99,6 @@ export async function POST(request: NextRequest) {
   
   const { user_id, tenant_id } = qrResult.payload
 
-  // STEP 5: Tenant isolation check
   if (tenant_id !== currentUser.tenant_id) {
     await writeAuditLog({
       ...baseAudit,
@@ -119,12 +108,10 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json({
       error: 'QR code belongs to different organization',
-    
       code: 'TENANT_MISMATCH'
     }, { status: 403 })
   }
 
-  // STEP 6: Look up member QR record in DB (version check)
   const { data: storedQR } = await supabaseAdmin
     .from('member_qr_codes')
     .select('token, is_revoked')
@@ -146,7 +133,6 @@ export async function POST(request: NextRequest) {
     }, { status: 400 })
   }
 
-  // Timing-safe compare:
   const tokBuf = Buffer.from(member_token)
   const dbBuf = Buffer.from(storedQR.token)
   if (
@@ -155,7 +141,7 @@ export async function POST(request: NextRequest) {
   ) {
     await writeAuditLog({
       ...baseAudit,
-      outcome: 'revoked', // Outcome is 'revoked' if version/token mismatch
+      outcome: 'revoked',
       target_user_id: user_id,
       session_id: session_id
     })
@@ -165,7 +151,6 @@ export async function POST(request: NextRequest) {
     }, { status: 400 })
   }
 
-  // STEP 7: Fetch member profile
   const supabase = await createClient()
   const { data: member } = await supabase
     .from('users')
@@ -203,7 +188,6 @@ export async function POST(request: NextRequest) {
     }, { status: 403 })
   }
 
-  // STEP 8: Validate session
   const { data: session } = await supabase
     .from('attendance_sessions')
     .select('id, is_active, scan_mode, label, session_date, meal_type, ended_at')
@@ -236,7 +220,6 @@ export async function POST(request: NextRequest) {
     }, { status: 409 })
   }
 
-  // STEP 9: Check already marked (idempotency)
   const { data: existing } = await supabaseAdmin
     .from('attendance_records')
     .select('id, marked_at')
@@ -268,7 +251,6 @@ export async function POST(request: NextRequest) {
     }, { status: 200 })
   }
 
-  // STEP 10: Insert attendance record
   const markedAt = new Date().toISOString()
   const { error: insertError } = await supabaseAdmin
     .from('attendance_records')
@@ -285,7 +267,7 @@ export async function POST(request: NextRequest) {
        return NextResponse.json({
         success: true,
         already_marked: true,
-        marked_at: markedAt, // Approximation for race condition
+        marked_at: markedAt,
         member: {
           full_name: member.full_name,
           role: member.role,
@@ -301,7 +283,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to record attendance' }, { status: 500 })
   }
 
-  // STEP 11: Audit log success
   await writeAuditLog({
     ...baseAudit,
     outcome: 'success',
@@ -309,7 +290,6 @@ export async function POST(request: NextRequest) {
     session_id: session_id
   })
 
-  // STEP 12: Return 201 — FULL member profile for display
   return NextResponse.json({
     success: true,
     already_marked: false,
@@ -329,4 +309,3 @@ export async function POST(request: NextRequest) {
     }
   }, { status: 201 })
 }
-

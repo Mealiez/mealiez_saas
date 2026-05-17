@@ -1,23 +1,22 @@
 /*
  * SECURITY: Super Admin API
- *
- * These routes use SERVICE ROLE KEY.
- * They bypass RLS entirely.
- * They MUST verify is_super_admin before any query.
- *
- * NEVER use tenant user JWT here.
- * NEVER return tenant user passwords or auth tokens.
- * NEVER allow cross-tenant writes via tenant JWT.
- *
- * Auth check: getSuperAdminUser() → 401 if null
- * All DB queries use supabaseAdmin (service role)
  */
 
 import { getSuperAdminUser } from '@/lib/auth/session'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for high-privilege platform analytics.
+ */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
+  // Lazy-initialize the admin client inside the request handler.
+  const supabaseAdmin = createAdminClient()
+  
   const superUser = await getSuperAdminUser()
   if (!superUser) {
     return NextResponse.json(
@@ -65,7 +64,7 @@ export async function GET() {
     return NextResponse.json({
       platform: {
         total_tenants: tenants.length,
-        active_tenants: tenants.length, // All tenants are "active" unless we add status column
+        active_tenants: tenants.length, 
         total_users: users.length,
         active_users: users.filter(u => u.is_active).length,
         meals_this_month: meals.length,

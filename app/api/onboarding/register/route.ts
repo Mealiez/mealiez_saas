@@ -1,31 +1,26 @@
 /*
  * SECURITY: Tenant Onboarding Route
- * 
- * tenant_id is NEVER accepted from client input.
- * tenant_id is generated server-side in SQL function.
- * tenant_id is stored in app_metadata (server-only).
- * tenant_id is immutable after creation.
- * 
- * FAILURE MODES:
- * - Auth creation fails     → return 500, nothing to clean
- * - SQL function fails      → return 500, delete auth user
- * - Metadata inject fails   → CRITICAL: rollback everything
- * - Metadata verify fails   → CRITICAL: rollback everything
- * 
- * A user must NEVER exist without tenant_id in app_metadata.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 /**
- * Rollback helper for onboarding failures
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for atomic onboarding and high-privilege operations.
+ */
+export const runtime = 'nodejs'
+
+/**
+ * rollbackOnboarding()
+ * Helper for onboarding failures to prevent zombie accounts.
  */
 async function rollbackOnboarding(
   auth_id: string, 
   reason: string
 ): Promise<void> {
+  const supabaseAdmin = createAdminClient()
   console.error(`[ONBOARDING ROLLBACK] Reason: ${reason}`)
   const { error } = await supabaseAdmin.auth.admin.deleteUser(auth_id)
   if (error) {
@@ -41,6 +36,7 @@ const RegisterSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = createAdminClient()
   try {
     // STEP 1 — Parse and validate body
     const body = await request.json()
@@ -77,19 +73,16 @@ export async function POST(request: NextRequest) {
       p_auth_id:   auth_id,
       p_full_name: full_name,
       p_org_name:  org_name,
-      p_plan:      'free'
+      p_plan:      'trial'
     })
 
     if (dbError) {
       console.error('[DB ERROR]', dbError)
-      // Compensating action: Delete the auth user
       await supabaseAdmin.auth.admin.deleteUser(auth_id)
       return NextResponse.json({ error: 'Tenant setup failed' }, { status: 500 })
     }
 
     // STEP 4 — Inject tenant_id into JWT app_metadata
-    // CRITICAL: failure here = zombie account
-    // Must rollback entirely if this fails
     const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(auth_id, {
       app_metadata: {
         tenant_id: onboardingResult.tenant_id,

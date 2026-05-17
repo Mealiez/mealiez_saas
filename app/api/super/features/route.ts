@@ -3,8 +3,14 @@
  */
 
 import { getSuperAdminUser } from '@/lib/auth/session'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse, NextRequest } from 'next/server'
+
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for dynamic feature management.
+ */
+export const runtime = 'nodejs'
 
 const FEATURE_KEYS = [
   'meal_management',
@@ -16,6 +22,9 @@ const FEATURE_KEYS = [
 ]
 
 export async function PATCH(request: NextRequest) {
+  // Lazy-initialize the admin client inside the request handler.
+  const supabaseAdmin = createAdminClient()
+  
   const superUser = await getSuperAdminUser()
   if (!superUser) {
     return NextResponse.json(

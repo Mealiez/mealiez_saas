@@ -5,6 +5,12 @@ import { MarkAttendanceSchema } from '@/lib/validations/attendance';
 import { verifyQRToken } from '@/lib/attendance/token';
 import { checkFeatureEnabled } from '@/lib/features/gate';
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for stable QR token verification and session handling.
+ */
+export const runtime = 'nodejs'
+
 /*
  * CRITICAL SECURITY: Mark attendance endpoint.
  * This endpoint is called by members scanning a QR.

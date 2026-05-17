@@ -4,12 +4,14 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 import { z } from 'zod'
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for inventory and gas management operations.
+ */
+export const runtime = 'nodejs'
+
 /*
  * Gas Cylinder API
- * Feature flag: 'inventory_management'
- * Roles: admin + manager (read/write)
- *        member (no access)
- * tenant_id: always from JWT
  */
 
 export async function GET(request: NextRequest) {

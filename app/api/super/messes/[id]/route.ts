@@ -3,14 +3,23 @@
  */
 
 import { getSuperAdminUser } from '@/lib/auth/session'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse, NextRequest } from 'next/server'
 import { UpdateTenantProfileSchema } from '@/lib/validations/settings'
+
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for high-privilege tenant profile management.
+ */
+export const runtime = 'nodejs'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Lazy-initialize the admin client inside the request handler.
+  const supabaseAdmin = createAdminClient()
+
   const superUser = await getSuperAdminUser()
   if (!superUser) {
     return NextResponse.json(
@@ -69,6 +78,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Lazy-initialize the admin client inside the request handler.
+  const supabaseAdmin = createAdminClient()
+
   const superUser = await getSuperAdminUser()
   if (!superUser) {
     return NextResponse.json(

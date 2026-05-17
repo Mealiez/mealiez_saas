@@ -1,7 +1,5 @@
 /*
  * SECURITY: Inventory API
- * tenant_id sourced from JWT only — never from body.
- * Feature flag: inventory_management must be enabled.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,6 +7,12 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 import { UpdateItemSchema } from '@/lib/validations/inventory'
+
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for sensitive inventory item management.
+ */
+export const runtime = 'nodejs'
 
 const FEATURE_KEY = 'inventory_management'
 
@@ -100,4 +104,3 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-

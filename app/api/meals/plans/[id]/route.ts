@@ -4,8 +4,14 @@ import { createClient } from '@/lib/supabase/server';
 import { UpdateMealPlanSchema } from '@/lib/validations/meals';
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate';
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for complex plan activation and scheduling logic.
+ */
+export const runtime = 'nodejs'
+
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -45,8 +51,8 @@ export async function GET(
     }
 
     return NextResponse.json(data);
-  } catch (err: any) {
-    console.error('[MEAL_PLAN_GET_ERROR]', err);
+  } catch (error: any) {
+    console.error('[MEAL_PLAN_GET_ERROR]', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -124,7 +130,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -133,7 +139,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'meal_management');
+    const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'attendance_tracking');
     if (!isEnabled) return featureDisabledResponse();
 
     if (!['admin'].includes(currentUser.role)) {
@@ -170,4 +176,3 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-

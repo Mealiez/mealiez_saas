@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/auth/session'
 import { generateMemberQRToken } from '@/lib/attendance/token'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for stable QR regeneration and admin operations.
+ */
+export const runtime = 'nodejs'
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
+  const supabaseAdmin = createAdminClient()
   const currentUser = await getCurrentUser()
   if (!currentUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

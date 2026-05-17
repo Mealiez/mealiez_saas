@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 /**
- * Use this ONLY in server components and API routes — never in (mobile)
+ * createClient()
+ * Lazy-initializes the Supabase client for Server Components and API routes.
  */
 export async function createClient() {
   const cookieStore = cookies()

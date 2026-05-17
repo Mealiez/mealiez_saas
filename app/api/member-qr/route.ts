@@ -3,26 +3,24 @@
  *
  * Member QR tokens are PERMANENT identity tokens.
  * They embed: user_id + tenant_id + version + signature.
- *
- * Threat model:
- *   - If a member screenshots their QR and shares it,
- *     an attacker could mark attendance.
- *   - Mitigation: admin regenerates QR (increments version,
- *     old token immediately invalid at DB level).
- *
- * tenant_id: ALWAYS from JWT app_metadata.
- * token:     ALWAYS server-generated via generateMemberQRToken().
- * version:   ALWAYS sourced from DB record (not client).
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/auth/session'
 import { generateMemberQRToken } from '@/lib/attendance/token'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 
-export async function GET(request: NextRequest) {
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for stable QR token generation and signature validation.
+ */
+export const runtime = 'nodejs'
+
+export async function GET(_request: NextRequest) {
+  // Lazy-initialize inside handler
+  const supabaseAdmin = createAdminClient()
   const currentUser = await getCurrentUser()
   if (!currentUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -87,6 +85,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = createAdminClient()
   const currentUser = await getCurrentUser()
   if (!currentUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -97,7 +96,7 @@ export async function POST(request: NextRequest) {
     return featureDisabledResponse()
   }
 
-  if (!['admin', 'manager'].includes(currentUser.role)) { // ← UPDATED: owner removed
+  if (!['admin', 'manager'].includes(currentUser.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

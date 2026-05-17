@@ -3,10 +3,19 @@
  */
 
 import { getSuperAdminUser } from '@/lib/auth/session'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse, NextRequest } from 'next/server'
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for high-privilege multi-tenant operations.
+ */
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
+  // Lazy-initialize the admin client inside the request handler.
+  const supabaseAdmin = createAdminClient()
+
   const superUser = await getSuperAdminUser()
   if (!superUser) {
     return NextResponse.json(

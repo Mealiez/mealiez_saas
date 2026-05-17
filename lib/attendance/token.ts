@@ -1,10 +1,20 @@
 import crypto from 'node:crypto';
 
 /*
- * SERVER-ONLY: QR token signing and verification.
- * Never import this in client components or
- * app/(mobile)/ files.
- * Uses ATTENDANCE_QR_SECRET from environment.
+ * PRODUCTION-GRADE CRYPTOGRAPHIC TOKEN MANAGEMENT
+ *
+ * This module handles the signing and verification of high-integrity tokens.
+ *
+ * ARCHITECTURAL CONSTRAINTS:
+ *
+ * 1. Build-Time Safety:
+ *    Cryptographic secrets are loaded lazily inside utility functions. This prevents 
+ *    the module from throwing errors or leaking information during Next.js static 
+ *    analysis or build-time evaluation.
+ *
+ * 2. Node-Native Dependencies:
+ *    Uses 'node:crypto' for HMAC-SHA256 and constant-time comparisons. Callers
+ *    must be executed in a Node.js runtime environment (export const runtime = 'nodejs').
  */
 
 export type QRTokenPayload = {
@@ -24,8 +34,6 @@ export type MemberQRPayload = {
   tenant_id: string;
   issued_at: number; // Unix timestamp
   version: number; // increment on revoke+reissue
-  // version prevents old screenshots:
-  // admin verifies version matches DB record
 };
 
 export type MemberQRVerifyResult =
@@ -38,26 +46,23 @@ export type MemberQRVerifyResult =
       reason: string;
     };
 
-// We use dynamic property access to prevent Webpack from inlining the secret values
-// into the bundle during build time. This helps avoid Netlify's secrets scanner.
-const getEnv = (key: string) => process.env[key]
+/**
+ * getSecrets()
+ * Lazy loader for cryptographic secrets. Prevents build-time crashes.
+ */
+function getSecrets() {
+  const attendance = process.env['ATTENDANCE_QR_SECRET'];
+  const member = process.env['MEMBER_QR_SECRET'];
 
-const ATTENDANCE_QR_SECRET = getEnv('ATTENDANCE_QR_SECRET')!;
-const MEMBER_QR_SECRET     = getEnv('MEMBER_QR_SECRET')!;
+  if (!attendance || !member) {
+    throw new Error('SECURITY CONFIGURATION ERROR: Cryptographic secrets are missing.');
+  }
 
-if (!ATTENDANCE_QR_SECRET) {
-  throw new Error(
-    'ATTENDANCE_QR_SECRET is not set. ' + 'Add it to .env.local'
-  );
-}
-
-if (!MEMBER_QR_SECRET) {
-  throw new Error(
-    'MEMBER_QR_SECRET is not set. ' + 'Add it to .env.local'
-  );
+  return { attendance, member };
 }
 
 /**
+ * signWith()
  * Signs a string using HMAC-SHA256 and returns a base64url signature.
  */
 function signWith(data: string, secret: string): string {
@@ -67,8 +72,8 @@ function signWith(data: string, secret: string): string {
 }
 
 /**
+ * encodeWith()
  * Encodes a payload into a signed token string.
- * Format: base64url(payload).signature
  */
 function encodeWith(payload: unknown, secret: string): string {
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -77,23 +82,21 @@ function encodeWith(payload: unknown, secret: string): string {
 }
 
 /**
- * Decodes and verifies a token string signature.
+ * decodeWith()
+ * Decodes and verifies a token string signature using timingSafeEqual.
  */
 function decodeWith(token: string, secret: string): { valid: true; payload: unknown; data: string } | { valid: false; reason: string } {
-  // STEP 1: Split token on '.'
   const parts = token.split('.');
   if (parts.length !== 2) {
     return { valid: false, reason: 'Malformed token' };
   }
 
-  // STEP 2: Verify signature
   const [data, sig] = parts;
   const expectedSig = signWith(data, secret);
 
   const sigBuffer = Buffer.from(sig, 'base64url');
   const expBuffer = Buffer.from(expectedSig, 'base64url');
 
-  // Use timing-safe comparison:
   if (sigBuffer.length !== expBuffer.length) {
     return { valid: false, reason: 'Invalid signature' };
   }
@@ -102,12 +105,9 @@ function decodeWith(token: string, secret: string): { valid: true; payload: unkn
     return { valid: false, reason: 'Invalid signature' };
   }
 
-  // STEP 3: Decode payload
   let payload: unknown;
   try {
-    payload = JSON.parse(
-      Buffer.from(data, 'base64url').toString('utf8')
-    );
+    payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
   } catch {
     return { valid: false, reason: 'Malformed payload' };
   }
@@ -116,6 +116,7 @@ function decodeWith(token: string, secret: string): { valid: true; payload: unkn
 }
 
 /**
+ * generateQRToken()
  * Generates a fresh QR token for a session.
  */
 export function generateQRToken(
@@ -125,6 +126,7 @@ export function generateQRToken(
   date: string,
   ttlMinutes: number = 15
 ): string {
+  const { attendance: secret } = getSecrets();
   const payload: QRTokenPayload = {
     session_id: sessionId,
     tenant_id: tenantId,
@@ -132,19 +134,20 @@ export function generateQRToken(
     date: date,
     exp: Math.floor(Date.now() / 1000) + ttlMinutes * 60,
   };
-  return encodeWith(payload, ATTENDANCE_QR_SECRET);
+  return encodeWith(payload, secret);
 }
 
 /**
- * Verifies a QR token.
+ * verifyQRToken()
+ * Verifies a short-lived QR token.
  */
 export function verifyQRToken(token: string): QRTokenResult {
-  const res = decodeWith(token, ATTENDANCE_QR_SECRET);
+  const { attendance: secret } = getSecrets();
+  const res = decodeWith(token, secret);
   if (!res.valid) return res;
 
   const payload = res.payload as QRTokenPayload;
 
-  // STEP 4: Check expiry
   if (Date.now() / 1000 > payload.exp) {
     return { valid: false, reason: 'Token expired' };
   }
@@ -153,8 +156,8 @@ export function verifyQRToken(token: string): QRTokenResult {
 }
 
 /**
+ * refreshQRToken()
  * Regenerate a fresh token for an existing session.
- * Called when admin refreshes the QR on screen.
  */
 export function refreshQRToken(
   sessionId: string,
@@ -166,6 +169,7 @@ export function refreshQRToken(
 }
 
 /**
+ * generateMemberQRToken()
  * Generates a permanent member QR token.
  */
 export function generateMemberQRToken(
@@ -173,20 +177,23 @@ export function generateMemberQRToken(
   tenantId: string,
   version: number
 ): string {
+  const { member: secret } = getSecrets();
   const payload: MemberQRPayload = {
     user_id: userId,
     tenant_id: tenantId,
     issued_at: Math.floor(Date.now() / 1000),
     version,
   };
-  return encodeWith(payload, MEMBER_QR_SECRET);
+  return encodeWith(payload, secret);
 }
 
 /**
- * Verifies a member QR token.
+ * verifyMemberQRToken()
+ * Verifies a high-integrity member QR token.
  */
 export function verifyMemberQRToken(token: string): MemberQRVerifyResult {
-  const res = decodeWith(token, MEMBER_QR_SECRET);
+  const { member: secret } = getSecrets();
+  const res = decodeWith(token, secret);
   if (!res.valid) return res;
 
   return { valid: true, payload: res.payload as MemberQRPayload };

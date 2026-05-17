@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
  * Checks if a specific feature is enabled for a given tenant.
@@ -14,6 +14,8 @@ export async function checkFeatureEnabled(
   tenantId: string,
   featureKey: string
 ): Promise<boolean> {
+  const supabaseAdmin = createAdminClient();
+  
   // Validate input
   if (!tenantId || !featureKey) {
     console.error('[FEATURE GATE] Missing tenantId or featureKey');
@@ -34,8 +36,6 @@ export async function checkFeatureEnabled(
       code: error.code
     });
     return false;
-    // Fail closed — if we cannot check,
-    // deny access rather than grant it
   }
 
   const isEnabled = data === true;

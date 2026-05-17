@@ -1,7 +1,5 @@
 /*
  * SECURITY: Inventory API
- * tenant_id sourced from JWT only — never from body.
- * Feature flag: inventory_management must be enabled.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,6 +7,12 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 import { CreateItemSchema } from '@/lib/validations/inventory'
+
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for critical inventory ledger operations.
+ */
+export const runtime = 'nodejs'
 
 const FEATURE_KEY = 'inventory_management'
 
@@ -82,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Role check: admin+ only
     if (!['admin'].includes(currentUser.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -120,9 +124,6 @@ export async function POST(request: NextRequest) {
 
     if (rpcError) {
       console.error('[INVENTORY_ITEMS_POST_RPC]', rpcError)
-      // Note: We don't fail the whole request because the item was created,
-      // but the UI might show a warning or we could attempt cleanup.
-      // For now, log it and return the item.
     }
 
     return NextResponse.json(item, { status: 201 })
@@ -131,4 +132,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-

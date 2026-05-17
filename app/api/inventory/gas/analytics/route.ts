@@ -3,17 +3,18 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate'
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for complex gas analytic computations.
+ */
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /*
  * Gas Cylinder API
- * Feature flag: 'inventory_management'
- * Roles: admin + manager (read/write)
- *        member (no access)
- * tenant_id: always from JWT
  */
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const currentUser = await getCurrentUser()
   if (!currentUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
   }
 
   // STEP 5: Fetch cylinders currently INSTALLED
-  const { data: installedCylinders, error: installedError } = await supabase
+  const { data: installedCylinders } = await supabase
     .from('gas_cylinder_logs')
     .select(`
       id, cylinder_number, cylinder_size_kg,
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     .eq('tenant_id', currentUser.tenant_id)
 
   // STEP 6: Fetch cylinders needing refill
-  const { data: needsRefill, error: refillError } = await supabase
+  const { data: needsRefill } = await supabase
     .from('gas_cylinder_logs')
     .select('id, cylinder_number, empty_date, notes')
     .in('status', ['EMPTY', 'REFILL_REQUESTED'])
