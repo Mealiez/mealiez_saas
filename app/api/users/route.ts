@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { InviteUserSchema } from '@/lib/validations/users'
 import { isAdminOrAbove, canAssignRole } from '@/lib/auth/roles'
 import crypto from 'crypto'
+import { sendInviteEmail } from '@/lib/email/sendInvite'
 
 /**
  * PRODUCTION-GRADE API ROUTE
@@ -16,7 +17,7 @@ import crypto from 'crypto'
 export const runtime = 'nodejs'
 
 function generateTempPassword(): string {
-  return crypto.randomUUID().replace(/-/g, '') + 'Aa1!'
+  return crypto.randomBytes(6).toString('base64url')
 }
 
 export async function POST(request: NextRequest) {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // STEP 1: Check if user already exists (cross-tenant check)
+    // STEP 1: Check if user already exists in auth
     const { data: conflict, error: rpcError } = await supabaseAdmin
       .rpc('check_user_invitation_conflict', {
         p_email: email
@@ -62,65 +63,66 @@ export async function POST(request: NextRequest) {
     if (rpcError) {
       console.error('[INVITE RPC ERROR]', {
         message: rpcError.message,
-        details: rpcError.details,
-        hint: rpcError.hint,
         code: rpcError.code
       })
-      return NextResponse.json({ error: 'Setup check failed', message: rpcError.message }, { status: 500 })
+      return NextResponse.json({ error: 'Setup check failed' }, { status: 500 })
     }
+
+    const tempPassword = generateTempPassword()
+    let auth_id: string
 
     if (conflict) {
-      return NextResponse.json(
-        { error: 'This email is already associated with another account.', code: 'EMAIL_CONFLICT' },
-        { status: 409 }
-      )
-    }
-
-    // STEP 2: Create Auth User
-    const tempPassword = generateTempPassword()
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name,
-        tenant_id: currentUser.tenant_id
+      // User exists in platform, we just fetch their ID to attach membership
+      const { data: existingUser, error: fetchError } = await supabaseAdmin.auth.admin.listUsers()
+      const found = existingUser.users.find(u => u.email === email)
+      
+      if (!found) {
+        return NextResponse.json({ error: 'Conflict detected but user not found' }, { status: 500 })
       }
-    })
-
-    if (authError) {
-      console.error('[AUTH CREATE ERROR]', {
-        message: authError.message,
-        status: authError.status
+      auth_id = found.id
+    } else {
+      // STEP 2: Create Auth User (New to platform)
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name,
+          tenant_id: currentUser.tenant_id,
+          invited: true
+        }
       })
-      return NextResponse.json({ error: authError.message }, { status: 500 })
+
+      if (authError) {
+        console.error('[AUTH CREATE ERROR]', authError)
+        return NextResponse.json({ error: authError.message }, { status: 500 })
+      }
+      auth_id = authData.user.id
     }
 
-    const auth_id = authData.user.id
-
-    // STEP 3: Insert into public.users
+    // STEP 3: Insert into public.users (Profile/Membership)
+    // We use upsert to handle case where user exists but needs new tenant link
     const { data: newUser, error: insertError } = await supabaseAdmin
       .from('users')
-      .insert({
+      .upsert({
         auth_id,
         tenant_id: currentUser.tenant_id,
         full_name,
         role,
         phone,
-        is_active: true
+        is_active: true,
+        must_change_password: true // Forced change on login
+      }, {
+        onConflict: 'auth_id' // Assuming 1 user = 1 tenant based on architecture note
       })
       .select()
       .single()
 
     if (insertError) {
-      console.error('[DB INSERT ERROR]', {
-        message: insertError.message,
-        details: insertError.details,
-        hint: insertError.hint,
-        code: insertError.code
-      })
-      await supabaseAdmin.auth.admin.deleteUser(auth_id)
-      return NextResponse.json({ error: 'Failed to create user profile', message: insertError.message }, { status: 500 })
+      console.error('[DB UPSERT ERROR]', insertError)
+      // Only delete if we just created it
+      if (!conflict) await supabaseAdmin.auth.admin.deleteUser(auth_id)
+      return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 })
     }
 
     // STEP 4: Set tenant_id in app_metadata
@@ -138,25 +140,30 @@ export async function POST(request: NextRequest) {
       console.error('[METADATA UPDATE ERROR]', metadataError)
     }
 
-    // STEP 5: Generate recovery/reset link
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-      options: {
-        redirectTo: `${new URL(request.url).origin}/reset-password`
-      }
-    })
+    // STEP 5: Fetch Organization Name for Email
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('name')
+      .eq('id', currentUser.tenant_id)
+      .single()
 
-    const recoveryLink = linkError ? null : linkData.properties.action_link
+    // STEP 6: Send Onboarding Email via Resend
+    const loginUrl = `${new URL(request.url).origin}/login`
+    const emailResult = await sendInviteEmail(
+      email,
+      tenant?.name || 'Mealiez',
+      tempPassword,
+      loginUrl
+    )
 
     return NextResponse.json({
       success: true,
+      email_sent: emailResult.success,
       user: {
         id: newUser.id,
         email,
         full_name,
-        role,
-        recovery_link: recoveryLink
+        role
       }
     }, { status: 201 })
 

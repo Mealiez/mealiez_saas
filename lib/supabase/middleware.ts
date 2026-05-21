@@ -36,7 +36,23 @@ export async function updateSession(request: NextRequest) {
 
   // This will refresh session if expired - required for Server Components
   // https://supabase.com/docs/guides/auth/server-side/nextjs
-  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Forced password change enforcement
+  if (user && !request.nextUrl.pathname.startsWith('/change-password') && !request.nextUrl.pathname.startsWith('/api/')) {
+    // Check DB for must_change_password flag
+    const { data: profile } = await supabase
+      .from('users')
+      .select('must_change_password')
+      .eq('auth_id', user.id)
+      .single()
+
+    if (profile?.must_change_password) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/change-password'
+      return NextResponse.redirect(url)
+    }
+  }
 
   return supabaseResponse
 }
