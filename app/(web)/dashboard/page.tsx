@@ -16,10 +16,18 @@ export default async function DashboardPage() {
   // STEP 2: Fetch tenant feature flags
   const supabase = await createClient();
 
-  const { data: features } = await supabase
+  const { data: features, error: featuresError } = await supabase
     .from('tenant_features')
     .select('feature_key, is_enabled')
     .eq('tenant_id', user.tenant_id);
+
+  if (featuresError) {
+    console.error('[DASHBOARD] Error fetching features:', {
+      error: featuresError.message,
+      code: featuresError.code,
+      tenant_id: user.tenant_id
+    });
+  }
   // RLS auto-scopes to user's tenant
 
   // Extract enabled feature keys
