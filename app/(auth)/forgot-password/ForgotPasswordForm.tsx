@@ -21,17 +21,27 @@ export default function ForgotPasswordForm() {
     setMessage(null)
     setMethod(selectedMethod)
 
-    const supabase = createClient()
+    console.log('Calling backend recovery API')
 
-    // Both methods use the same Supabase function, but we handle the UI differently
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
+    const endpoint = selectedMethod === 'link' 
+      ? '/api/auth/send-reset-link' 
+      : '/api/auth/send-otp'
 
-    if (error) {
-      setMessage({ type: 'error', text: error.message })
-      setIsLoading(false)
-    } else {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send recovery information')
+      }
+
       if (selectedMethod === 'link') {
         setMessage({ 
           type: 'success', 
@@ -49,6 +59,9 @@ export default function ForgotPasswordForm() {
           router.push(`/reset-password?email=${encodeURIComponent(email)}`)
         }, 2000)
       }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message })
+      setIsLoading(false)
     }
   }
 

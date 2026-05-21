@@ -45,26 +45,49 @@ export default function ResetPasswordForm() {
 
     // 1. If we don't have a valid session yet, we must verify the OTP first
     if (!isSessionValid) {
-      if (!email) {
-        setError('Email is required for code verification.')
+      if (!email || !otp) {
+        setError('Email and recovery code are required.')
         setIsLoading(false)
         return
       }
       
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email,
-        token: otp,
-        type: 'recovery',
-      })
+      console.log('Calling backend OTP verification API')
 
-      if (verifyError) {
-        setError(verifyError.message)
+      try {
+        const response = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            email, 
+            otp,
+            newPassword // The backend verify-otp handles the password update for OTP flow
+          }),
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Verification failed')
+        }
+
+        // For OTP flow, the password is already updated by the backend
+        setSuccess(true)
+        setIsLoading(false)
+        
+        setTimeout(() => {
+          router.push('/login')
+        }, 3000)
+        return // Exit early
+      } catch (err: any) {
+        setError(err.message)
         setIsLoading(false)
         return
       }
     }
 
-    // 2. Update the password (works if session is valid from verifyOtp or from link)
+    // 2. Link-based flow: Update the password using the existing session
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     })
