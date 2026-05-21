@@ -60,8 +60,13 @@ export async function POST(request: NextRequest) {
       })
 
     if (rpcError) {
-      console.error('[INVITE RPC ERROR]', rpcError)
-      return NextResponse.json({ error: 'Setup check failed' }, { status: 500 })
+      console.error('[INVITE RPC ERROR]', {
+        message: rpcError.message,
+        details: rpcError.details,
+        hint: rpcError.hint,
+        code: rpcError.code
+      })
+      return NextResponse.json({ error: 'Setup check failed', message: rpcError.message }, { status: 500 })
     }
 
     if (conflict) {
@@ -84,7 +89,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
-      console.error('[AUTH CREATE ERROR]', authError)
+      console.error('[AUTH CREATE ERROR]', {
+        message: authError.message,
+        status: authError.status
+      })
       return NextResponse.json({ error: authError.message }, { status: 500 })
     }
 
@@ -105,9 +113,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
-      console.error('[DB INSERT ERROR]', insertError)
+      console.error('[DB INSERT ERROR]', {
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        code: insertError.code
+      })
       await supabaseAdmin.auth.admin.deleteUser(auth_id)
-      return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to create user profile', message: insertError.message }, { status: 500 })
     }
 
     // STEP 4: Set tenant_id in app_metadata
