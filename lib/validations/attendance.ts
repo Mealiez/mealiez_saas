@@ -20,6 +20,7 @@ export const CreateSessionSchema = z.object({
     .optional()
     .nullable(),
   scan_mode: z.enum(['session', 'member']).default('session'),
+  branch_id: z.string().uuid('Invalid branch ID').optional().nullable(),
 });
 
 export const UpdateSessionSchema = z.object({

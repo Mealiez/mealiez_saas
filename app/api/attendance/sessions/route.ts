@@ -96,17 +96,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validated.error.flatten() }, { status: 400 });
     }
 
+    // Determine branch_id
+    // Manager: Forced to their own branch
+    // Admin: Uses provided branch_id or NULL (Main)
+    const branch_id = currentUser.role === 'admin' 
+      ? (validated.data.branch_id || null)
+      : (currentUser.branch_id || null);
+
     const supabase = await createClient();
 
-    // Check no active session for same date + meal_type in this tenant
-    const { data: conflict } = await supabase
+    // Check no active session for same date + meal_type + branch in this tenant
+    let conflictQuery = supabase
       .from('attendance_sessions')
       .select('id, label')
       .eq('tenant_id', currentUser.tenant_id)
       .eq('session_date', validated.data.session_date)
       .eq('meal_type', validated.data.meal_type)
-      .eq('is_active', true)
-      .maybeSingle();
+      .eq('is_active', true);
+
+    if (branch_id) {
+      conflictQuery = conflictQuery.eq('branch_id', branch_id);
+    } else {
+      conflictQuery = conflictQuery.is('branch_id', null);
+    }
+
+    const { data: conflict } = await conflictQuery.maybeSingle();
 
     if (conflict) {
       return NextResponse.json({
@@ -119,6 +133,7 @@ export async function POST(req: NextRequest) {
       .from('attendance_sessions')
       .insert({
         tenant_id: currentUser.tenant_id,
+        branch_id,
         meal_plan_item_id: validated.data.meal_plan_item_id ?? null,
         session_date: validated.data.session_date,
         meal_type: validated.data.meal_type,
@@ -130,7 +145,17 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error('[SESSIONS_POST_DB_ERROR]', {
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        code: insertError.code,
+        tenant_id: currentUser.tenant_id,
+        branch_id
+      });
+      throw insertError;
+    }
 
     const qr_token = generateQRToken(
       session.id,
