@@ -126,13 +126,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 })
     }
 
-    // STEP 4: Set tenant_id in app_metadata
+    // STEP 4: Set tenant_id and branch_id in app_metadata
     const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(
       auth_id,
       {
         app_metadata: {
           tenant_id: currentUser.tenant_id,
-          role: role
+          role: role,
+          branch_id: branch_id
         }
       }
     )
