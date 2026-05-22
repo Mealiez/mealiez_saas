@@ -155,7 +155,7 @@ export default function AddTransactionModal({
                 onChange={(e) => setForm({ ...form, branch_id: e.target.value })}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value="">Platform/Main</option>
+                <option value="">Global</option>
                 {branches.map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}

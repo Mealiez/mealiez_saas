@@ -207,7 +207,8 @@ export async function POST(request: NextRequest) {
   }
 
   // BRANCH VERIFICATION: Strict location check
-  if (member.branch_id !== (session.branch_id || null)) {
+  // IF session.branch_id is NULL, it's a GLOBAL session (accessible to all branches)
+  if (session.branch_id && member.branch_id !== (session.branch_id || null)) {
     await writeAuditLog({
       ...baseAudit,
       outcome: 'branch_mismatch',

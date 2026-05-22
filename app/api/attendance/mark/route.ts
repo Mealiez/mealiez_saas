@@ -88,8 +88,8 @@ export async function POST(req: NextRequest) {
     }
 
     // BRANCH VERIFICATION: Ensure user belongs to the session's branch
-    // Strict match required for multi-location security.
-    if (session.branch_id !== (currentUser.branch_id || null)) {
+    // IF session.branch_id is NULL, it's a GLOBAL session (accessible to all branches)
+    if (session.branch_id && session.branch_id !== (currentUser.branch_id || null)) {
       return NextResponse.json(
         { 
           error: 'Branch Mismatch: You are not registered with this branch.', 
