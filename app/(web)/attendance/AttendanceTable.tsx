@@ -5,6 +5,7 @@ import Link from 'next/link';
 import CreateSessionModal from './CreateSessionModal';
 import MyQRModal from '@/components/web/MyQRModal';
 import MemberScannerModal from '@/components/web/MemberScannerModal';
+import { AuthUser } from '@/lib/auth/roles';
 
 /*
  * CLIENT COMPONENT: Attendance List Table
@@ -26,9 +27,14 @@ export type AttendanceSession = {
 interface AttendanceTableProps {
   initialSessions: AttendanceSession[];
   canManage: boolean;
+  currentUser: AuthUser;
 }
 
-export default function AttendanceTable({ initialSessions, canManage }: AttendanceTableProps) {
+export default function AttendanceTable({ 
+  initialSessions, 
+  canManage,
+  currentUser 
+}: AttendanceTableProps) {
   const [sessions, setSessions] = useState<AttendanceSession[]>(initialSessions);
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
@@ -67,7 +73,10 @@ export default function AttendanceTable({ initialSessions, canManage }: Attendan
         </div>
         <div className="flex gap-3">
           {canManage && (
-            <CreateSessionModal onSessionCreated={handleSessionCreated} />
+            <CreateSessionModal 
+              onSessionCreated={handleSessionCreated} 
+              currentUser={currentUser}
+            />
           )}
         </div>
       </div>

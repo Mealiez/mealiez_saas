@@ -15,13 +15,23 @@ const MEAL_TYPE_LABELS: Record<string, string> = {
   snack: 'Snack',
 };
 
-interface CreateSessionModalProps {
-  onSessionCreated: (session: any, qr_token: string) => void;
+interface Branch {
+  id: string
+  name: string
 }
 
-export default function CreateSessionModal({ onSessionCreated }: CreateSessionModalProps) {
+interface CreateSessionModalProps {
+  onSessionCreated: (session: any, qr_token: string) => void;
+  currentUser: {
+    role: string;
+    branch_id?: string | null;
+  };
+}
+
+export default function CreateSessionModal({ onSessionCreated, currentUser }: CreateSessionModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
@@ -29,7 +39,25 @@ export default function CreateSessionModal({ onSessionCreated }: CreateSessionMo
     meal_type: 'lunch',
     label: '',
     scan_mode: 'session',
+    branch_id: ''
   });
+
+  // Fetch branches
+  useEffect(() => {
+    if (isOpen && currentUser.role === 'admin') {
+      fetch('/api/branches')
+        .then(res => res.json())
+        .then(data => {
+          if (data.data) {
+            setBranches(data.data)
+            if (data.data.length > 0) {
+              setForm(prev => ({ ...prev, branch_id: data.data[0].id }))
+            }
+          }
+        })
+        .catch(err => console.error('Failed to fetch branches', err))
+    }
+  }, [isOpen, currentUser.role])
 
   // Auto-generate label on meal_type or date change
   useEffect(() => {
@@ -51,11 +79,18 @@ export default function CreateSessionModal({ onSessionCreated }: CreateSessionMo
     setIsLoading(true);
     setError(null);
 
+    // If manager, branch_id is automatically handled by backend from session,
+    // but we can pass it for clarity if we want.
+    const payload = {
+      ...form,
+      branch_id: currentUser.role === 'admin' ? (form.branch_id || null) : (currentUser.branch_id || null)
+    }
+
     try {
       const res = await fetch('/api/attendance/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -123,6 +158,23 @@ export default function CreateSessionModal({ onSessionCreated }: CreateSessionMo
                   required
                 />
               </div>
+
+              {currentUser.role === 'admin' && (
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-gray-700">Mess Branch</label>
+                  <select
+                    value={form.branch_id}
+                    onChange={e => setForm(prev => ({ ...prev, branch_id: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em]"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")` }}
+                  >
+                    <option value="">Platform/Main</option>
+                    {branches.map(branch => (
+                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="block text-sm font-bold text-gray-700">Initial Scan Mode</label>

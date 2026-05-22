@@ -77,6 +77,7 @@ export default async function AttendancePage() {
             branch_name: s.branches?.name || 'Main'
           })) || []} 
           canManage={canManage} 
+          currentUser={user}
         />
       </div>
     </div>

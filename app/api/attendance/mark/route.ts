@@ -68,10 +68,10 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // STEP 6: Verify session is still active
+    // STEP 6: Verify session is still active and check branch assignment
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
-      .select('id, is_active, label')
+      .select('id, is_active, label, branch_id')
       .eq('id', result.payload.session_id)
       .eq('tenant_id', currentUser.tenant_id)
       .single();
@@ -84,6 +84,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'This attendance session is closed.', code: 'SESSION_CLOSED' },
         { status: 409 }
+      );
+    }
+
+    // BRANCH VERIFICATION: Ensure user belongs to the session's branch
+    // Strict match required for multi-location security.
+    if (session.branch_id !== (currentUser.branch_id || null)) {
+      return NextResponse.json(
+        { 
+          error: 'Branch Mismatch: You are not registered with this branch.', 
+          code: 'BRANCH_MISMATCH' 
+        },
+        { status: 403 }
       );
     }
 

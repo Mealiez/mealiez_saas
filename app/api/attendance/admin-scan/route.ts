@@ -161,6 +161,7 @@ export async function POST(request: NextRequest) {
       role,
       is_active,
       created_at,
+      branch_id,
       branches (
         name
       )
@@ -196,13 +197,27 @@ export async function POST(request: NextRequest) {
 
   const { data: session } = await supabase
     .from('attendance_sessions')
-    .select('id, is_active, scan_mode, label, session_date, meal_type, ended_at')
+    .select('id, is_active, scan_mode, label, session_date, meal_type, ended_at, branch_id')
     .eq('id', session_id)
     .eq('tenant_id', currentUser.tenant_id)
     .maybeSingle()
 
   if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+  }
+
+  // BRANCH VERIFICATION: Strict location check
+  if (member.branch_id !== (session.branch_id || null)) {
+    await writeAuditLog({
+      ...baseAudit,
+      outcome: 'branch_mismatch',
+      target_user_id: user_id,
+      session_id: session_id
+    })
+    return NextResponse.json({
+      error: 'Branch Mismatch: You are not registered with this branch.',
+      code: 'BRANCH_MISMATCH'
+    }, { status: 403 })
   }
 
   if (session.scan_mode !== 'member') {
