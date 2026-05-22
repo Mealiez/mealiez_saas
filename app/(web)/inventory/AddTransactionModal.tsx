@@ -1,6 +1,4 @@
-"use client"
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { 
   TRANSACTION_LABELS, 
@@ -9,9 +7,10 @@ import {
 } from '@/lib/validations/inventory'
 import { StockRow } from './StockOverview'
 
-/**
- * FILE 3: app/(web)/inventory/AddTransactionModal.tsx
- */
+interface Branch {
+  id: string
+  name: string
+}
 
 interface AddTransactionModalProps {
   item: StockRow | null
@@ -29,13 +28,32 @@ export default function AddTransactionModal({
   onSuccess
 }: AddTransactionModalProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [branches, setBranches] = useState<Branch[]>([])
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
     transaction_type: defaultType,
     quantity: '',
     unit_cost: '',
+    branch_id: '',
     notes: ''
   })
+
+  // Fetch branches
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/branches')
+        .then(res => res.json())
+        .then(data => {
+          if (data.data) {
+            setBranches(data.data)
+            if (data.data.length > 0) {
+              setForm(prev => ({ ...prev, branch_id: data.data[0].id }))
+            }
+          }
+        })
+        .catch(err => console.error('Failed to fetch branches', err))
+    }
+  }, [isOpen])
 
   if (!isOpen || !item) return null
 
@@ -63,6 +81,7 @@ export default function AddTransactionModal({
           transaction_type: form.transaction_type,
           quantity: signedQty,
           unit_cost: form.unit_cost ? parseFloat(form.unit_cost) : null,
+          branch_id: form.branch_id || null,
           notes: form.notes || null
         })
       })
@@ -126,6 +145,23 @@ export default function AddTransactionModal({
               </button>
             ))}
           </div>
+
+          {/* Branch Selector */}
+          {branches.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Branch Location</label>
+              <select
+                value={form.branch_id}
+                onChange={(e) => setForm({ ...form, branch_id: e.target.value })}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Platform/Main</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Quantity Input */}
           <div className="space-y-1.5">

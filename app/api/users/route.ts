@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, full_name, role, phone } = result.data
+    const { email, full_name, role, phone, branch_id } = result.data
 
     if (!canAssignRole(currentUser.role, role)) {
       return NextResponse.json(
@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
         full_name,
         role,
         phone,
+        branch_id,
         is_active: true,
         must_change_password: true // Forced change on login
       }, {
@@ -163,7 +164,8 @@ export async function POST(request: NextRequest) {
         id: newUser.id,
         email,
         full_name,
-        role
+        role,
+        branch_id: newUser.branch_id
       }
     }, { status: 201 })
 

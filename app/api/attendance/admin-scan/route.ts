@@ -160,7 +160,10 @@ export async function POST(request: NextRequest) {
       phone,
       role,
       is_active,
-      created_at
+      created_at,
+      branches (
+        name
+      )
     `)
     .eq('id', user_id)
     .eq('tenant_id', currentUser.tenant_id)
@@ -169,6 +172,9 @@ export async function POST(request: NextRequest) {
   if (!member) {
     return NextResponse.json({ error: 'Member not found' }, { status: 404 })
   }
+
+  // @ts-ignore - Supabase join result
+  const branchName = member.branches?.name || 'Main Branch'
 
   if (!member.is_active) {
     await writeAuditLog({
@@ -241,7 +247,8 @@ export async function POST(request: NextRequest) {
       member: {
         full_name: member.full_name,
         role: member.role,
-        phone: member.phone
+        phone: member.phone,
+        branch_name: branchName
       },
       session: {
         label: session.label,
@@ -271,7 +278,8 @@ export async function POST(request: NextRequest) {
         member: {
           full_name: member.full_name,
           role: member.role,
-          phone: member.phone
+          phone: member.phone,
+          branch_name: branchName
         },
         session: {
           label: session.label,
@@ -299,6 +307,7 @@ export async function POST(request: NextRequest) {
       full_name: member.full_name,
       role: member.role,
       phone: member.phone,
+      branch_name: branchName,
       is_active: member.is_active,
       member_since: member.created_at
     },

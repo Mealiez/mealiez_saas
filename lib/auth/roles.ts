@@ -15,6 +15,7 @@ export type AuthUser = {
   email?:      string
   role:        TenantRole
   is_active:   boolean
+  branch_id?:  string
 }
 
 export type SuperAdminUser = {

@@ -100,6 +100,10 @@ export const CreateTransactionSchema = z.object({
   notes: z.string()
     .max(500)
     .optional()
+    .nullable(),
+  branch_id: z.string()
+    .uuid('Invalid branch ID')
+    .optional()
     .nullable()
 })
   .refine(

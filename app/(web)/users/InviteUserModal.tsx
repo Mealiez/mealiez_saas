@@ -1,8 +1,13 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { InviteUserSchema } from '@/lib/validations/users'
 import { type UserRole, getAssignableRoles, ROLE_LABELS } from '@/lib/auth/roles'
+
+interface Branch {
+  id: string
+  name: string
+}
 
 interface InviteUserModalProps {
   currentUserRole: UserRole
@@ -11,18 +16,37 @@ interface InviteUserModalProps {
 export default function InviteUserModal({ currentUserRole }: InviteUserModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [branches, setBranches] = useState<Branch[]>([])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]> | null>(null)
+
+  const assignableRoles = getAssignableRoles(currentUserRole)
 
   const [form, setForm] = useState({
     email: '',
     full_name: '',
     phone: '',
-    role: getAssignableRoles(currentUserRole)[0] || 'member' as UserRole
+    role: assignableRoles[0] || 'member' as UserRole,
+    branch_id: ''
   })
 
-  const assignableRoles = getAssignableRoles(currentUserRole)
+  // Fetch branches
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/branches')
+        .then(res => res.json())
+        .then(data => {
+          if (data.data) {
+            setBranches(data.data)
+            if (data.data.length > 0) {
+              setForm(prev => ({ ...prev, branch_id: data.data[0].id }))
+            }
+          }
+        })
+        .catch(err => console.error('Failed to fetch branches', err))
+    }
+  }, [isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,7 +73,13 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
 
       if (res.status === 201) {
         setSuccess(`Invitation sent to ${form.email}`)
-        setForm({ email: '', full_name: '', phone: '', role: assignableRoles[0] || 'member' })
+        setForm({ 
+          email: '', 
+          full_name: '', 
+          phone: '', 
+          role: assignableRoles[0] || 'member',
+          branch_id: branches[0]?.id || '' 
+        })
         setTimeout(() => {
           setIsOpen(false)
           setSuccess(null)
@@ -133,6 +163,23 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
               </div>
+
+              {branches.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Mess Branch</label>
+                  <select
+                    required
+                    value={form.branch_id}
+                    onChange={e => setForm({ ...form, branch_id: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    {branches.map(branch => (
+                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                    ))}
+                  </select>
+                  {fieldErrors?.branch_id && <p className="mt-1 text-xs text-red-500">{fieldErrors.branch_id[0]}</p>}
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">Role</label>

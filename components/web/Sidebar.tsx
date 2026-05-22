@@ -11,7 +11,8 @@ import {
   Settings as SettingsIcon,
   ChefHat,
   ChevronLeft,
-  Menu
+  Menu,
+  MapPin
 } from 'lucide-react'
 import SidebarSignOut from './SidebarSignOut'
 import NavLink from './NavLink'
@@ -28,6 +29,11 @@ const navItems = [
     label: 'Users',
     href:  '/users',
     icon:  UsersIcon
+  },
+  {
+    label: 'Branches',
+    href:  '/branches',
+    icon:  MapPin
   },
   {
     label: 'Meals',
@@ -108,7 +114,7 @@ export default function Sidebar({ user }: SidebarProps) {
         )}
         {navItems
           .filter(item => {
-            if (['Users', 'Settings'].includes(item.label)) {
+            if (['Users', 'Settings', 'Branches'].includes(item.label)) {
               return user.role === 'admin'
             }
             return true

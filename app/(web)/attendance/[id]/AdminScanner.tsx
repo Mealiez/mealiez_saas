@@ -24,6 +24,7 @@ interface ScanResult {
     full_name: string;
     role: string;
     phone: string | null;
+    branch_name: string;
     is_active: boolean;
     member_since: string;
   };
@@ -250,6 +251,9 @@ export default function AdminScanner({ sessionId }: AdminScannerProps) {
               <div className="flex flex-wrap gap-2 pt-1">
                 <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded-md border border-gray-200">
                   {result.member.role}
+                </span>
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase rounded-md border border-slate-200">
+                  {result.member.branch_name}
                 </span>
                 {result.member.phone && (
                   <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded-md border border-gray-200">

@@ -18,7 +18,8 @@ const FEATURE_KEYS = [
   'inventory_management',
   'pre_meal_requests',
   'custom_reports',
-  'billing'
+  'billing',
+  'branch_management'
 ]
 
 export async function PATCH(request: NextRequest) {

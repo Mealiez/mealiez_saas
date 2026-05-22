@@ -8,7 +8,8 @@ const FEATURE_KEYS = [
   'inventory_management',
   'pre_meal_requests',
   'custom_reports',
-  'billing'
+  'billing',
+  'branch_management'
 ]
 
 export default async function FeatureControlPage() {

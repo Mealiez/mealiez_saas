@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
         transaction_type: validated.data.transaction_type,
         quantity: validated.data.quantity,
         unit_cost: validated.data.unit_cost ?? null,
+        branch_id: validated.data.branch_id ?? null,
         notes: validated.data.notes ?? null,
         stock_before: stock.current_stock,
         stock_after: projectedStock, // Trigger re-calculates but we provide intent

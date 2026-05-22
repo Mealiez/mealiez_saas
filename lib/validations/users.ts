@@ -20,7 +20,8 @@ export const InviteUserSchema = z.object({
     .nullable(),
   role: z.enum(['manager', 'member'], { // ← UPDATED: admin removed
     error: 'Role must be manager or member'
-  })
+  }),
+  branch_id: z.string().uuid('Invalid branch').optional().nullable()
 })
 
 /**

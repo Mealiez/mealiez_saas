@@ -53,7 +53,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const supabase = await createClient()
   const { data: profile, error } = await supabase
     .from('users')
-    .select('id, full_name, is_active, role')
+    .select('id, full_name, is_active, role, branch_id')
     .eq('auth_id', user.id)
     .single()
 
@@ -72,7 +72,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     tenant_id,
     role: finalRole as TenantRole,
     full_name: profile.full_name,
-    is_active: profile.is_active
+    is_active: profile.is_active,
+    branch_id: profile.branch_id
   }
 }
 

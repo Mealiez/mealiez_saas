@@ -20,6 +20,7 @@ export type AttendanceSession = {
   started_at: string;
   ended_at: string | null;
   scan_mode?: 'session' | 'member';
+  branch_name?: string;
 };
 
 interface AttendanceTableProps {
@@ -78,6 +79,7 @@ export default function AttendanceTable({ initialSessions, canManage }: Attendan
               <tr>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Label</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Meal Type</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Branch</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Date</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500 text-center">Status</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Started</th>
@@ -97,6 +99,13 @@ export default function AttendanceTable({ initialSessions, canManage }: Attendan
                     <td className="px-6 py-4 font-semibold text-gray-900">{session.label}</td>
                     <td className="px-6 py-4">
                       <span className="capitalize text-gray-600">{session.meal_type}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {session.branch_name && (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase rounded-md border border-slate-200">
+                          {session.branch_name}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-gray-600">{session.session_date}</td>
                     <td className="px-6 py-4 text-center">

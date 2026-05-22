@@ -119,6 +119,18 @@ export const MODULE_CARDS: ModuleCard[] = [
     badge: null,
     size: 'normal',
   },
+  {
+    id: 'branches',
+    title: 'Branch Management',
+    description: 'Manage multiple mess locations, assign staff and view local analytics.',
+    href: '/branches',
+    icon: '\uD83C\uDFE2',
+    requiredFeature: 'branch_management',
+    allowedRoles: ['admin'],
+    manageRoles: ['admin'],
+    badge: 'New',
+    size: 'normal',
+  },
 ];
 
 export function getVisibleCards(
