@@ -12,7 +12,8 @@ import {
   ChefHat,
   ChevronLeft,
   Menu,
-  MapPin
+  MapPin,
+  Utensils
 } from 'lucide-react'
 import SidebarSignOut from './SidebarSignOut'
 import NavLink from './NavLink'
@@ -39,6 +40,11 @@ const navItems = [
     label: 'Meals',
     href:  '/meals',
     icon:  UtensilsCrossed
+  },
+  {
+    label: 'Requests',
+    href:  '/meal-requests',
+    icon:  Utensils
   },
   {
     label: 'Attendance',
@@ -73,9 +79,9 @@ export default function Sidebar({ user }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true)
 
   const filteredItems = navItems.filter(item => {
-    // 1. Members: Only Dashboard, Meals, Attendance
+    // 1. Members: Only Dashboard, Meals, Attendance, Requests
     if (user.role === 'member') {
-      return ['Dashboard', 'Meals', 'Attendance'].includes(item.label)
+      return ['Dashboard', 'Meals', 'Attendance', 'Requests'].includes(item.label)
     }
 
     // 2. Admins: Everything

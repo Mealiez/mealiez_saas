@@ -28,9 +28,9 @@ const navItems = [
     icon: Camera
   },
   {
-    label: 'Meals',
-    href: '/m/meals',
-    icon: UtensilsCrossed
+    label: 'Booking',
+    href: '/m/meal-requests',
+    icon: Utensils
   },
   {
     label: 'Inventory',

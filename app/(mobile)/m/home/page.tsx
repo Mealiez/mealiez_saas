@@ -59,6 +59,26 @@ export default function MobileHomePage() {
         </Link>
 
         <Link 
+          href="/m/meal-requests"
+          className="block bg-white p-6 rounded-3xl border border-gray-100 shadow-sm active:scale-[0.98] transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-2xl">
+                🍱
+              </div>
+              <div>
+                <h3 className="font-black text-gray-900 uppercase tracking-tight">Meal Request</h3>
+                <p className="text-xs text-gray-500">Book your next meal</p>
+              </div>
+            </div>
+            <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+
+        <Link 
           href="/m/attendance/scan"
           className="block bg-white p-6 rounded-3xl border border-gray-100 shadow-sm active:scale-[0.98] transition-all"
         >
