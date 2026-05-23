@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Utensils, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Calendar, Utensils, Loader2, Timer, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { getMealSessionStatus, MealSessionStatus } from '@/lib/utils/meal-times';
 
 interface MealRequest {
   id: string;
@@ -16,10 +17,18 @@ interface MealRequest {
   requested_at: string;
 }
 
+interface MealSettings {
+  breakfast_start: string;
+  lunch_start: string;
+  dinner_start: string;
+}
+
 export default function MemberMealRequests() {
   const [requests, setRequests] = useState<MealRequest[]>([]);
+  const [settings, setSettings] = useState<MealSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [timers, setTimers] = useState<Record<string, MealSessionStatus>>({});
 
   const fetchRequests = async () => {
     try {
@@ -29,14 +38,39 @@ export default function MemberMealRequests() {
     } catch (err) {
       console.error(err);
       toast.error('Failed to load your requests');
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings/meal-times');
+      const data = await res.json();
+      setSettings(data.data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
   useEffect(() => {
-    fetchRequests();
+    Promise.all([fetchRequests(), fetchSettings()]).finally(() => setIsLoading(false));
   }, []);
+
+  // Countdown timer logic
+  useEffect(() => {
+    if (!settings) return;
+
+    const tick = () => {
+      setTimers({
+        breakfast: getMealSessionStatus(settings.breakfast_start),
+        lunch:     getMealSessionStatus(settings.lunch_start),
+        dinner:    getMealSessionStatus(settings.dinner_start)
+      });
+    };
+
+    tick(); // Initial call
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [settings]);
 
   const handleAction = async (date: string, type: string, action: 'request' | 'cancel') => {
     const key = `${date}-${type}`;
@@ -60,25 +94,39 @@ export default function MemberMealRequests() {
   };
 
   const today = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
   const renderSlot = (date: string, type: string, label: string) => {
     const request = requests.find(r => r.session_date === date && r.meal_type === type);
     const isRequested = request?.status === 'requested';
     const key = `${date}-${type}`;
+    const status = timers[type];
+    const isClosed = status?.isClosed;
 
     return (
-      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 transition-all hover:bg-white hover:shadow-sm">
-        <div className="flex items-center gap-3">
+      <div className={cn(
+        "flex items-center justify-between p-5 rounded-2xl border transition-all",
+        isClosed && !isRequested ? "bg-gray-100/50 border-gray-200 grayscale opacity-60" : "bg-gray-50 border-gray-100 hover:bg-white hover:shadow-sm"
+      )}>
+        <div className="flex items-center gap-4">
           <div className={cn(
-            "p-2 rounded-xl",
-            isRequested ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400"
+            "p-2.5 rounded-xl transition-colors",
+            isRequested ? "bg-green-100 text-green-600" : isClosed ? "bg-gray-200 text-gray-400" : "bg-blue-100 text-blue-600"
           )}>
-            <Utensils size={18} />
+            {isClosed && !isRequested ? <Lock size={20} /> : <Utensils size={20} />}
           </div>
           <div>
-            <p className="text-xs font-black uppercase text-gray-400 tracking-widest">{label}</p>
-            <p className="text-sm font-bold text-gray-900">{isRequested ? 'Reserved' : 'Not Requested'}</p>
+            <div className="flex items-center gap-2">
+               <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest leading-none">{label}</p>
+               {!isClosed && !isRequested && (
+                 <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                    <Timer size={10} />
+                    <span className="text-[10px] font-bold font-mono">{status?.timeLeft}</span>
+                 </div>
+               )}
+            </div>
+            <p className="text-base font-black text-gray-900 mt-0.5">
+               {isRequested ? 'Booking Confirmed' : isClosed ? 'Window Closed' : 'Accepting Requests'}
+            </p>
           </div>
         </div>
         
@@ -86,36 +134,64 @@ export default function MemberMealRequests() {
           size="sm"
           variant={isRequested ? "outline" : "default"}
           onClick={() => handleAction(date, type, isRequested ? 'cancel' : 'request')}
-          disabled={isSubmitting === key}
+          disabled={isSubmitting === key || (isClosed && !isRequested)}
           className={cn(
-            "rounded-xl font-bold h-9 px-5",
-            !isRequested && "bg-blue-600 hover:bg-blue-700"
+            "rounded-xl font-bold h-10 px-6",
+            !isRequested && !isClosed && "bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/10"
           )}
         >
-          {isSubmitting === key ? <Loader2 size={16} className="animate-spin" /> : (isRequested ? 'Cancel' : 'Request')}
+          {isSubmitting === key ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : isRequested ? (
+            'Cancel Booking'
+          ) : isClosed ? (
+            'Closed'
+          ) : (
+            'Book Now'
+          )}
         </Button>
       </div>
     );
   };
 
+  if (isLoading) {
+     return (
+        <div className="p-20 text-center space-y-4">
+           <Loader2 className="animate-spin mx-auto text-blue-500" size={32} />
+           <p className="font-black uppercase tracking-widest text-gray-400 text-xs">Loading Live Status...</p>
+        </div>
+     );
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Quick Request Section */}
       <div className="max-w-2xl mx-auto">
-        <Card className="rounded-[2.5rem] border-2 border-blue-50 shadow-xl shadow-blue-500/5 overflow-hidden">
+        <Card className="rounded-[2.5rem] border-none shadow-2xl shadow-blue-500/10 overflow-hidden bg-white">
           <CardHeader className="bg-blue-600 text-white p-8">
-            <div className="flex items-center gap-3 mb-1">
-               <Calendar className="opacity-60" size={20} />
-               <CardTitle className="text-2xl font-black uppercase tracking-tight">Today</CardTitle>
+            <div className="flex items-center justify-between">
+               <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                     <Calendar className="opacity-60" size={20} />
+                     <CardTitle className="text-2xl font-black uppercase tracking-tight">Today's Meals</CardTitle>
+                  </div>
+                  <CardDescription className="text-blue-100 font-medium italic">
+                    {new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}
+                  </CardDescription>
+               </div>
+               <Timer size={32} className="opacity-20" />
             </div>
-            <CardDescription className="text-blue-100 font-medium italic">
-              {new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}
-            </CardDescription>
           </CardHeader>
-          <CardContent className="p-8 space-y-4">
+          <CardContent className="p-8 space-y-5">
              {renderSlot(today, 'breakfast', 'Breakfast')}
              {renderSlot(today, 'lunch', 'Lunch')}
              {renderSlot(today, 'dinner', 'Dinner')}
+             
+             <div className="pt-4 border-t border-gray-50">
+                <p className="text-[10px] font-bold text-gray-400 uppercase text-center tracking-widest">
+                   * Real-time cutoff applied based on session start times
+                </p>
+             </div>
           </CardContent>
         </Card>
       </div>
@@ -123,7 +199,7 @@ export default function MemberMealRequests() {
       {/* History Log */}
       <Card className="rounded-3xl border-none shadow-sm bg-white border border-gray-100 overflow-hidden">
         <CardHeader className="border-b border-gray-50 px-8 py-6">
-          <CardTitle className="text-lg font-black uppercase tracking-tight text-gray-900">Request History</CardTitle>
+          <CardTitle className="text-lg font-black uppercase tracking-tight text-gray-900">Personal Request History</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -137,14 +213,7 @@ export default function MemberMealRequests() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={4} className="px-8 py-12 text-center text-gray-400">
-                      <Loader2 className="animate-spin mx-auto mb-2" size={24} />
-                      <p className="font-bold uppercase tracking-widest text-xs">Loading Log...</p>
-                    </td>
-                  </tr>
-                ) : requests.map((req) => (
+                {requests.map((req) => (
                   <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-8 py-4 font-bold text-gray-900">{req.session_date}</td>
                     <td className="px-8 py-4 capitalize font-medium text-gray-600">{req.meal_type}</td>
@@ -164,7 +233,7 @@ export default function MemberMealRequests() {
                     </td>
                   </tr>
                 ))}
-                {!isLoading && requests.length === 0 && (
+                {requests.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-8 py-12 text-center text-gray-400 italic font-medium">
                       No meal requests found in your history.
