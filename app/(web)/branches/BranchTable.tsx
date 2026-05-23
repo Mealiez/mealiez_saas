@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -79,14 +80,27 @@ export default function BranchTable({ branches, onEdit }: BranchTableProps) {
                   </Badge>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => onEdit(branch)}
-                    className="hover:bg-blue-50 hover:text-blue-600 rounded-lg"
-                  >
-                    Edit
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      asChild
+                      className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg group/btn"
+                    >
+                      <Link href={`/attendance/setup?branch_id=${branch.id}`}>
+                        <span className="mr-1.5 opacity-0 group-hover/btn:opacity-100 transition-opacity">⚙️</span>
+                        Attendance
+                      </Link>
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => onEdit(branch)}
+                      className="hover:bg-blue-50 hover:text-blue-600 rounded-lg"
+                    >
+                      Edit
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}

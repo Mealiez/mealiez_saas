@@ -96,7 +96,9 @@ export default function QRDisplay({
       return;
     }
     
-    QRCode.toDataURL(token, {
+    const qrValue = `${window.location.origin}/m/attendance/mark?token=${token}&type=quick`;
+    
+    QRCode.toDataURL(qrValue, {
       width: 400,
       margin: 2,
       color: { dark: '#000000', light: '#ffffff' },

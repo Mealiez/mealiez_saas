@@ -23,42 +23,56 @@ const navItems = [
   {
     label: 'Dashboard',
     href:  '/dashboard',
-    icon:  LayoutDashboard
+    icon:  LayoutDashboard,
+    group: 'core'
   },
   {
     label: 'Users',
     href:  '/users',
-    icon:  UsersIcon
+    icon:  UsersIcon,
+    group: 'core'
   },
   {
     label: 'Branches',
     href:  '/branches',
-    icon:  MapPin
+    icon:  MapPin,
+    group: 'core'
   },
   {
     label: 'Meals',
     href:  '/meals',
-    icon:  UtensilsCrossed
+    icon:  UtensilsCrossed,
+    group: 'ops'
   },
   {
     label: 'Attendance',
     href:  '/attendance',
-    icon:  CheckCircle2
+    icon:  CheckCircle2,
+    group: 'ops'
+  },
+  {
+    label: 'Attendance Setup',
+    href:  '/attendance/setup',
+    icon:  SettingsIcon,
+    group: 'ops'
+  },
+  {
+    label: 'Attendance Records',
+    href:  '/attendance/records',
+    icon:  BarChart3,
+    group: 'ops'
   },
   {
     label: 'Inventory',
     href:  '/inventory',
-    icon:  Package
-  },
-  {
-    label: 'Reports',
-    href:  '/reports',
-    icon:  BarChart3
+    icon:  Package,
+    group: 'ops'
   },
   {
     label: 'Settings',
     href:  '/settings',
-    icon:  SettingsIcon
+    icon:  SettingsIcon,
+    group: 'core'
   }
 ]
 
@@ -71,6 +85,13 @@ interface SidebarProps {
 
 export default function Sidebar({ user }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true)
+
+  const filteredItems = navItems.filter(item => {
+    if (['Users', 'Settings', 'Branches', 'Attendance Setup'].includes(item.label)) {
+      return user.role === 'admin'
+    }
+    return true
+  })
 
   return (
     <aside 
@@ -106,28 +127,46 @@ export default function Sidebar({ user }: SidebarProps) {
       </div>
 
       {/* Navigation Section */}
-      <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto custom-scrollbar">
-        {isOpen && (
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-3 animate-in fade-in duration-300">
-            System Core
-          </div>
-        )}
-        {navItems
-          .filter(item => {
-            if (['Users', 'Settings', 'Branches'].includes(item.label)) {
-              return user.role === 'admin'
-            }
-            return true
-          })
-          .map(item => (
-            <NavLink
-              key={item.href}
-              href={item.href}
-              icon={item.icon}
-              label={item.label}
-              isCollapsed={!isOpen}
-            />
-          ))}
+      <nav className="flex-1 p-4 space-y-6 overflow-y-auto custom-scrollbar">
+        {/* Core Group */}
+        <div className="space-y-1.5">
+          {isOpen && (
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-3 animate-in fade-in duration-300">
+              System Core
+            </div>
+          )}
+          {filteredItems
+            .filter(item => item.group === 'core')
+            .map(item => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+                isCollapsed={!isOpen}
+              />
+            ))}
+        </div>
+
+        {/* Operations Group */}
+        <div className="space-y-1.5">
+          {isOpen && (
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-3 animate-in fade-in duration-300">
+              Operations
+            </div>
+          )}
+          {filteredItems
+            .filter(item => item.group === 'ops')
+            .map(item => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+                isCollapsed={!isOpen}
+              />
+            ))}
+        </div>
       </nav>
 
       {/* Footer Sidebar Section */}

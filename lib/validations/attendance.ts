@@ -35,7 +35,9 @@ export const MarkAttendanceSchema = z.object({
   session_token: z.string()
     .min(1, 'Token required'),
   // Raw token string from QR decode
-  // Server verifies signature and expiry
+  // For 'quick' mode: JWT with session info
+  // For 'automated' mode: Permanent static token
+  type: z.enum(['quick', 'automated']).default('quick'),
 });
 
 export const ManualMarkSchema = z.object({
