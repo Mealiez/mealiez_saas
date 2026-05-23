@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import AttendanceLogsContent from './AttendanceLogsContent';
 
 /*
@@ -13,6 +14,12 @@ export default async function AttendanceLogsPage({
   searchParams: { date?: string; meal_type?: string; branch_id?: string }
 }) {
   const user = await requireAuth();
+
+  // ROLE-BASED AUTH: Only manager+ can view logs
+  if (!['admin', 'manager'].includes(user.role)) {
+    redirect('/attendance');
+  }
+
   const supabase = await createClient();
 
   const filterDate = searchParams.date || new Date().toISOString().split('T')[0];

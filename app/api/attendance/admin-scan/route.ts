@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Member not found' }, { status: 404 })
   }
 
-  // @ts-ignore - Supabase join result
+  // @ts-expect-error - Supabase join result
   const branchName = member.branches?.name || 'Main Branch'
 
   if (!member.is_active) {

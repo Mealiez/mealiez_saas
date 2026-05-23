@@ -4,6 +4,7 @@
  * Use lib/auth/client-session.ts for client-side auth.
  */
 
+// import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cache } from 'react'

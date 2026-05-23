@@ -6,9 +6,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { 
   LayoutDashboard, 
-  History, 
   ListTodo, 
-  Settings2,
   ChevronLeft,
   ChevronRight,
   ClipboardList
@@ -20,23 +18,32 @@ const menuItems = [
     label: 'Dashboard',
     href: '/attendance',
     icon: LayoutDashboard,
-    exact: true
+    exact: true,
+    roles: ['admin', 'manager', 'member']
   },
   {
     label: 'Active Sessions',
     href: '/attendance/sessions',
-    icon: ListTodo
+    icon: ListTodo,
+    roles: ['admin', 'manager']
   },
   {
     label: 'Attendance Logs',
     href: '/attendance/logs',
-    icon: ClipboardList
+    icon: ClipboardList,
+    roles: ['admin', 'manager']
   }
 ];
 
-export default function AttendanceSidebar() {
+interface AttendanceSidebarProps {
+  userRole: string;
+}
+
+export default function AttendanceSidebar({ userRole }: AttendanceSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
+
+  const filteredMenu = menuItems.filter(item => item.roles.includes(userRole));
 
   return (
     <aside 
@@ -62,7 +69,7 @@ export default function AttendanceSidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
-        {menuItems.map((item) => {
+        {filteredMenu.map((item) => {
           const isActive = item.exact 
             ? pathname === item.href 
             : pathname.startsWith(item.href);
@@ -95,7 +102,7 @@ export default function AttendanceSidebar() {
         })}
       </nav>
 
-      {!isCollapsed && (
+      {!isCollapsed && userRole !== 'member' && (
         <div className="p-4 border-t">
           <div className="bg-gray-900 rounded-2xl p-4 text-white space-y-2">
              <p className="text-[10px] font-black uppercase tracking-widest opacity-50 text-blue-400">Live Status</p>

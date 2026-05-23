@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import AttendanceTable from '../AttendanceTable';
 
 /*
@@ -9,6 +10,12 @@ import AttendanceTable from '../AttendanceTable';
 
 export default async function ManageSessionsPage() {
   const user = await requireAuth();
+
+  // ROLE-BASED AUTH: Only manager+ can manage manual sessions
+  if (!['admin', 'manager'].includes(user.role)) {
+    redirect('/attendance');
+  }
+
   const supabase = await createClient();
 
   const today = new Date().toISOString().split('T')[0];
@@ -44,7 +51,7 @@ export default async function ManageSessionsPage() {
       <AttendanceTable 
         initialSessions={sessions?.map(s => ({
           ...s,
-          // @ts-ignore
+          // @ts-expect-error: Supabase join relation results in nested object mapping
           branch_name: s.branches?.name || 'Global'
         })) || []} 
         canManage={canManage} 

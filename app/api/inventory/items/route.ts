@@ -26,6 +26,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // ROLE-BASED AUTH: Only manager+ can view inventory items/stock
+    if (!['admin', 'manager'].includes(currentUser.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, FEATURE_KEY)
     if (!isEnabled) return featureDisabledResponse()
 

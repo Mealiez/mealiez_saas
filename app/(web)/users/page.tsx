@@ -1,11 +1,17 @@
 import { requireAuth } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { isAdminOrAbove } from '@/lib/auth/roles'
 import UsersTable from './UsersTable'
 import InviteUserModal from './InviteUserModal'
 
 export default async function UsersPage() {
   const currentUser = await requireAuth()
+
+  // ROLE-BASED AUTH: Only admin can access user management
+  if (currentUser.role !== 'admin') {
+    redirect('/dashboard');
+  }
 
   const supabase = await createClient()
   const { data: users } = await supabase

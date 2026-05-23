@@ -21,6 +21,11 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // ROLE-BASED AUTH: Only manager+ can fetch session details/summary
+    if (!['admin', 'manager'].includes(currentUser.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'attendance_tracking');
     if (!isEnabled) return featureDisabledResponse();
 

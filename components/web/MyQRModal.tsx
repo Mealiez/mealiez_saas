@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 
@@ -15,7 +15,14 @@ interface MyQR {
   full_name: string;
 }
 
-export default function MyQRModal({ trigger }: { trigger?: React.ReactNode }) {
+interface MyQRModalProps {
+  trigger?: React.ReactNode;
+  userId?: string;
+  userName?: string;
+  isInline?: boolean;
+}
+
+export default function MyQRModal({ trigger, userId, userName, isInline }: MyQRModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [qr, setQr] = useState<MyQR | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,7 +36,7 @@ export default function MyQRModal({ trigger }: { trigger?: React.ReactNode }) {
       if (!res.ok) throw new Error('Failed to fetch QR');
       const data = await res.json();
       setQr(data);
-      setIsOpen(true);
+      if (!isInline) setIsOpen(true);
     } catch (err) {
       console.error('[MY_QR_FETCH_ERROR]', err);
       setError('Failed to load your identity badge');
@@ -37,6 +44,49 @@ export default function MyQRModal({ trigger }: { trigger?: React.ReactNode }) {
       setLoading(false);
     }
   };
+
+  // Auto-fetch if inline
+  useEffect(() => {
+    if (isInline) {
+      fetchQR();
+    }
+  }, [isInline]);
+
+  if (isInline) {
+    if (loading) return (
+      <div className="flex flex-col items-center justify-center p-8 space-y-4">
+        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-[10px] font-black uppercase text-gray-400">Fetching Badge</p>
+      </div>
+    );
+
+    if (error) return (
+      <div className="text-center p-8 text-red-500 font-bold text-sm">
+        {error}
+      </div>
+    );
+
+    if (!qr) return null;
+
+    return (
+      <div className="flex flex-col items-center animate-in fade-in zoom-in duration-500">
+        <div className="p-4 bg-white rounded-3xl shadow-inner border border-gray-100 mb-6 inline-block">
+          <QRCodeSVG 
+            value={qr.token}
+            size={200}
+            level="H"
+            includeMargin={false}
+          />
+        </div>
+        <div className="space-y-1 text-center">
+          <h3 className="text-lg font-bold text-gray-900">{qr.full_name}</h3>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Issued on {new Date(qr.issued_at).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

@@ -72,6 +72,25 @@ interface SidebarProps {
 export default function Sidebar({ user }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true)
 
+  const filteredItems = navItems.filter(item => {
+    // 1. Members: Only Dashboard, Meals, Attendance
+    if (user.role === 'member') {
+      return ['Dashboard', 'Meals', 'Attendance'].includes(item.label)
+    }
+
+    // 2. Admins: Everything
+    if (user.role === 'admin') {
+      return true
+    }
+
+    // 3. Managers: No Users, Settings, or Branches
+    if (user.role === 'manager') {
+      return !['Users', 'Settings', 'Branches'].includes(item.label)
+    }
+
+    return false
+  })
+
   return (
     <aside 
       className={cn(
@@ -112,22 +131,15 @@ export default function Sidebar({ user }: SidebarProps) {
             System Core
           </div>
         )}
-        {navItems
-          .filter(item => {
-            if (['Users', 'Settings', 'Branches'].includes(item.label)) {
-              return user.role === 'admin'
-            }
-            return true
-          })
-          .map(item => (
-            <NavLink
-              key={item.href}
-              href={item.href}
-              icon={item.icon}
-              label={item.label}
-              isCollapsed={!isOpen}
-            />
-          ))}
+        {filteredItems.map(item => (
+          <NavLink
+            key={item.href}
+            href={item.href}
+            icon={item.icon}
+            label={item.label}
+            isCollapsed={!isOpen}
+          />
+        ))}
       </nav>
 
       {/* Footer Sidebar Section */}

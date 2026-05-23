@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import jsQR from 'jsqr';
 
 /*
  * CLIENT COMPONENT: Member Scanner Modal (Web)
@@ -10,11 +11,12 @@ import { Button } from '@/components/ui/button';
 
 interface MemberScannerModalProps {
   onSuccess?: () => void;
+  isInline?: boolean;
 }
 
-export default function MemberScannerModal({ onSuccess }: MemberScannerModalProps) {
+export default function MemberScannerModal({ onSuccess, isInline }: MemberScannerModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
+  const [isScanning, setIsScanning] = useState(isInline || false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,10 +27,12 @@ export default function MemberScannerModal({ onSuccess }: MemberScannerModalProp
   const streamRef = useRef<MediaStream | null>(null);
 
   const stopCamera = useCallback(() => {
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
+    }
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
     }
     setIsScanning(false);
   }, []);
@@ -42,46 +46,44 @@ export default function MemberScannerModal({ onSuccess }: MemberScannerModalProp
       const res = await fetch('/api/attendance/mark', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_token: token })
+        body: JSON.stringify({ token })
       });
 
       const data = await res.json();
-
+      
       if (!res.ok) {
-        setError(data.error || 'Failed to mark attendance');
-        setIsProcessing(false);
-      } else {
-        setResult({ success: true, message: data.message || 'Attendance marked!' });
-        setIsProcessing(false);
-        if (onSuccess) onSuccess();
+        throw new Error(data.error || 'Failed to mark attendance');
       }
-    } catch (_err) {
-      setError('Connection error. Please try again.');
+
+      setResult({ success: true, message: data.message || 'Attendance marked successfully!' });
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      console.error('[SCAN_PROCESS_ERROR]', err);
+      setError(err.message || 'Verification failed. Please try again.');
+    } finally {
       setIsProcessing(false);
     }
   }, [stopCamera, onSuccess]);
 
-  const tick = useCallback(async () => {
-    if (videoRef.current?.readyState === videoRef.current?.HAVE_ENOUGH_DATA) {
+  const tick = useCallback(() => {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
       const canvas = canvasRef.current;
       const video = videoRef.current;
-      if (canvas && video) {
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (ctx) {
-          canvas.height = video.videoHeight;
-          canvas.width = video.videoWidth;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          
-          const jsQR = (await import('jsqr')).default;
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert',
-          });
+      const context = canvas.getContext('2d', { willReadFrequently: true });
 
-          if (code) {
-            processToken(code.data);
-            return;
-          }
+      if (context) {
+        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code && code.data) {
+          processToken(code.data);
+          return; // Stop ticking
         }
       }
     }
@@ -89,32 +91,103 @@ export default function MemberScannerModal({ onSuccess }: MemberScannerModalProp
   }, [processToken]);
 
   const startCamera = useCallback(async () => {
-    setIsScanning(true);
-    setResult(null);
     setError(null);
+    setResult(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' }
+        video: { facingMode: 'environment' }
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        animFrameRef.current = requestAnimationFrame(tick);
+        await videoRef.current.play();
       }
-    } catch (_err) {
-      setError('Could not access camera. Please check permissions.');
-      setIsScanning(false);
+      setIsScanning(true);
+      animFrameRef.current = requestAnimationFrame(tick);
+    } catch (err) {
+      console.error('[CAMERA_ERROR]', err);
+      setError('Camera access denied. Please allow permissions.');
     }
   }, [tick]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || isInline) {
       startCamera();
     } else {
       stopCamera();
     }
     return () => stopCamera();
-  }, [isOpen, startCamera, stopCamera]);
+  }, [isOpen, isInline, startCamera, stopCamera]);
+
+  if (isInline) {
+    return (
+      <div className="w-full space-y-6">
+        {isScanning && (
+          <div className="relative aspect-square bg-black rounded-3xl overflow-hidden shadow-2xl ring-4 ring-blue-50/50 max-w-sm mx-auto">
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            <canvas ref={canvasRef} className="hidden" />
+            <div className="absolute inset-0 border-2 border-white/20 pointer-events-none flex items-center justify-center">
+              <div className="w-48 h-48 border-2 border-blue-400 rounded-2xl opacity-50 relative">
+                 <div className="absolute inset-x-2 top-0 h-0.5 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan-line" />
+              </div>
+            </div>
+            <div className="absolute bottom-4 inset-x-0 text-center">
+              <span className="px-4 py-1.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-full border border-white/10">
+                Align QR Code inside frame
+              </span>
+            </div>
+          </div>
+        )}
+
+        {isProcessing && (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse">Processing Check-in...</p>
+          </div>
+        )}
+
+        {result && (
+          <div className="text-center py-8 space-y-6 animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Check-in Success</h3>
+              <p className="text-sm font-medium text-gray-500">{result.message}</p>
+            </div>
+            <Button 
+              onClick={() => { setResult(null); startCamera(); }}
+              className="w-full bg-gray-900 hover:bg-black text-white rounded-2xl h-14 font-black uppercase tracking-widest"
+            >
+              Scan Again
+            </Button>
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center py-8 space-y-6 animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-black text-red-900 uppercase">Scan Error</h3>
+              <p className="text-sm font-bold text-red-700/70">{error}</p>
+            </div>
+            <Button 
+              onClick={startCamera}
+              className="w-full bg-red-600 hover:bg-red-700 text-white rounded-2xl h-14 font-black uppercase tracking-widest"
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -147,7 +220,7 @@ export default function MemberScannerModal({ onSuccess }: MemberScannerModalProp
               {isScanning && (
                 <div className="relative aspect-square bg-black rounded-2xl overflow-hidden shadow-inner ring-4 ring-gray-100">
                   <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                  <canvas ref={canvasRef} hidden />
+                  <canvas ref={canvasRef} className="hidden" />
                   <div className="absolute inset-0 border-2 border-white/20 pointer-events-none flex items-center justify-center">
                     <div className="w-48 h-48 border-2 border-indigo-400 rounded-2xl opacity-50 relative">
                        <div className="absolute inset-x-2 top-0 h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-scan-line" />

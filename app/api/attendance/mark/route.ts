@@ -34,6 +34,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // ROLE-BASED AUTH: Only members can mark their own attendance via QR
+    if (currentUser.role !== 'member') {
+      return NextResponse.json(
+        { error: 'Managers and Admins cannot mark their own attendance via QR scan.', code: 'STAFF_SELF_MARK_FORBIDDEN' },
+        { status: 403 }
+      );
+    }
+
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'attendance_tracking');
     if (!isEnabled) {
       return NextResponse.json(

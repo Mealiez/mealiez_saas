@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import StockOverview from './StockOverview'
 import LowStockAlerts from './LowStockAlerts'
 import Link from 'next/link'
@@ -12,6 +13,12 @@ import { Plus, Barcode, ClipboardList, AlertCircle, PackageOpen, History } from 
  */
 export default async function InventoryPage() {
   const user = await requireAuth()
+
+  // ROLE-BASED AUTH: Only manager+ can access inventory
+  if (user.role === 'member') {
+    redirect('/dashboard');
+  }
+
   const supabase = await createClient()
 
   // Fetch stock overview via RPC

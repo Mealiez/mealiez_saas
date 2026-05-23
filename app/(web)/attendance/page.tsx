@@ -12,14 +12,23 @@ import {
   Zap,
   QrCode
 } from 'lucide-react';
+import MemberAttendance from './MemberAttendance';
 
 /*
  * SERVER COMPONENT: Attendance Module Dashboard
- * Entry point for Manager+ users.
+ * Entry point for all users.
  */
 
 export default async function AttendanceDashboard() {
   const user = await requireAuth();
+  
+  // ROLE-BASED GATING: 
+  // Members see their personal QR page.
+  // Manager+ see the analytics dashboard.
+  if (user.role === 'member') {
+    return <MemberAttendance user={user} />;
+  }
+
   const supabase = await createClient();
   const today = new Date().toISOString().split('T')[0];
 
@@ -49,6 +58,9 @@ export default async function AttendanceDashboard() {
     .eq('is_active', true)
     .order('started_at', { ascending: false });
 
+  // ROLE-BASED GATING FOR QUICK LINKS
+  const showManagementLinks = ['admin', 'manager'].includes(user.role);
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       {/* Welcome & Header */}
@@ -60,11 +72,13 @@ export default async function AttendanceDashboard() {
           <p className="text-gray-500 font-medium mt-1">Real-time check-in analytics and session management</p>
         </div>
         <div className="flex gap-2">
-           <Link href="/attendance/sessions">
-              <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20">
-                <Zap className="mr-2 w-4 h-4" /> Start Quick Session
-              </Button>
-           </Link>
+           {showManagementLinks && (
+             <Link href="/attendance/sessions">
+                <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20">
+                  <Zap className="mr-2 w-4 h-4" /> Start Quick Session
+                </Button>
+             </Link>
+           )}
         </div>
       </div>
 
@@ -98,13 +112,15 @@ export default async function AttendanceDashboard() {
         ))}
       </div>
 
-      {/* Active Sessions List */}
+      {/* Active Sessions List (Visible to all authorized, but usually only staff/admin need this) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Active Live Sessions</h3>
-           <Link href="/attendance/sessions" className="text-xs font-bold text-blue-600 hover:underline flex items-center">
-             View All Sessions <ArrowRight className="ml-1 w-3 h-3" />
-           </Link>
+           {showManagementLinks && (
+             <Link href="/attendance/sessions" className="text-xs font-bold text-blue-600 hover:underline flex items-center">
+               View All Sessions <ArrowRight className="ml-1 w-3 h-3" />
+             </Link>
+           )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -119,7 +135,7 @@ export default async function AttendanceDashboard() {
                         </div>
                         <h4 className="text-xl font-bold text-gray-900">{session.label}</h4>
                         <p className="text-xs text-gray-500 font-medium">
-                           {/* @ts-ignore */}
+                           {/* @ts-expect-error: Supabase join relation results in nested object mapping */}
                            {session.branches?.name || 'Global'} • Started {new Date(session.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                      </div>
@@ -134,34 +150,36 @@ export default async function AttendanceDashboard() {
           ))}
           {activeSessions?.length === 0 && (
             <div className="col-span-full py-12 text-center bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-100">
-               <p className="text-gray-400 font-medium italic">No dynamic sessions are active. Use 'Quick Mode' to start one.</p>
+               <p className="text-gray-400 font-medium italic">No dynamic sessions are active.</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Quick Links / Navigation */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         <Link href="/attendance/logs" className="group">
-            <Card className="rounded-3xl p-6 border-2 border-gray-50 hover:border-blue-100 hover:bg-blue-50/20 transition-all">
-               <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
-                  <ClipboardList size={24} />
-               </div>
-               <h4 className="font-bold text-gray-900">Attendance Logs</h4>
-               <p className="text-xs text-gray-500 mt-1">Detailed history of all check-ins with filters.</p>
-            </Card>
-         </Link>
+      {showManagementLinks && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           <Link href="/attendance/logs" className="group">
+              <Card className="rounded-3xl p-6 border-2 border-gray-50 hover:border-blue-100 hover:bg-blue-50/20 transition-all">
+                 <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
+                    <ClipboardList size={24} />
+                 </div>
+                 <h4 className="font-bold text-gray-900">Attendance Logs</h4>
+                 <p className="text-xs text-gray-500 mt-1">Detailed history of all check-ins with filters.</p>
+              </Card>
+           </Link>
 
-         <Link href="/reports" className="group">
-            <Card className="rounded-3xl p-6 border-2 border-gray-50 hover:border-emerald-100 hover:bg-emerald-50/20 transition-all">
-               <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 mb-4 group-hover:scale-110 transition-transform">
-                  <BarChart3 size={24} />
-               </div>
-               <h4 className="font-bold text-gray-900">Module Reports</h4>
-               <p className="text-xs text-gray-500 mt-1">Export attendance data and generate insights.</p>
-            </Card>
-         </Link>
-      </div>
+           <Link href="/reports" className="group">
+              <Card className="rounded-3xl p-6 border-2 border-gray-50 hover:border-emerald-100 hover:bg-emerald-50/20 transition-all">
+                 <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 mb-4 group-hover:scale-110 transition-transform">
+                    <BarChart3 size={24} />
+                 </div>
+                 <h4 className="font-bold text-gray-900">Module Reports</h4>
+                 <p className="text-xs text-gray-500 mt-1">Export attendance data and generate insights.</p>
+              </Card>
+           </Link>
+        </div>
+      )}
     </div>
   );
 }
