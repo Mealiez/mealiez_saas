@@ -18,12 +18,20 @@ import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gat
  */
 export const runtime = 'nodejs'
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   // Lazy-initialize inside handler
   const supabaseAdmin = createAdminClient()
   const currentUser = await getCurrentUser()
   if (!currentUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { searchParams } = new URL(request.url)
+  const targetUserId = searchParams.get('userId') || currentUser.id
+
+  // Security: Non-admins can ONLY fetch their own QR
+  if (targetUserId !== currentUser.id && !['admin', 'manager'].includes(currentUser.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'attendance_tracking')
@@ -32,11 +40,23 @@ export async function GET(_request: NextRequest) {
   }
 
   const supabase = await createClient()
+  
+  // Fetch target user info to ensure same tenant and get name
+  const { data: targetUser, error: userError } = await supabase
+    .from('users')
+    .select('id, full_name, tenant_id')
+    .eq('id', targetUserId)
+    .single()
+
+  if (userError || !targetUser || targetUser.tenant_id !== currentUser.tenant_id) {
+    return NextResponse.json({ error: 'User not found in your organization' }, { status: 404 })
+  }
+
   const { data: qrRecord } = await supabase
     .from('member_qr_codes')
     .select('id, token, issued_at, is_revoked')
     .eq('tenant_id', currentUser.tenant_id)
-    .eq('user_id', currentUser.id)
+    .eq('user_id', targetUserId)
     .eq('is_revoked', false)
     .maybeSingle()
 
@@ -44,21 +64,21 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json({
       token: qrRecord.token,
       issued_at: qrRecord.issued_at,
-      user_id: currentUser.id,
-      full_name: currentUser.full_name
+      user_id: targetUserId,
+      full_name: targetUser.full_name
     })
   }
 
   // Auto-generate QR for first-time fetch
   const version = 1
   const generatedToken = generateMemberQRToken(
-    currentUser.id,
+    targetUserId,
     currentUser.tenant_id,
     version
   )
 
   const { error: rpcError } = await supabaseAdmin.rpc('generate_member_qr', {
-    p_user_id: currentUser.id,
+    p_user_id: targetUserId,
     p_tenant_id: currentUser.tenant_id,
     p_issued_by: currentUser.id,
     p_token: generatedToken
@@ -79,8 +99,8 @@ export async function GET(_request: NextRequest) {
   return NextResponse.json({
     token: generatedToken,
     issued_at: newRecord?.issued_at || new Date().toISOString(),
-    user_id: currentUser.id,
-    full_name: currentUser.full_name
+    user_id: targetUserId,
+    full_name: targetUser.full_name
   }, { status: 201 })
 }
 

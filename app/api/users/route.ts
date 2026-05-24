@@ -9,6 +9,7 @@ import { InviteUserSchema } from '@/lib/validations/users'
 import { isAdminOrAbove, canAssignRole } from '@/lib/auth/roles'
 import crypto from 'crypto'
 import { sendInviteEmail } from '@/lib/email/sendInvite'
+import dns from 'dns/promises'
 
 /**
  * PRODUCTION-GRADE API ROUTE
@@ -18,6 +19,16 @@ export const runtime = 'nodejs'
 
 function generateTempPassword(): string {
   return crypto.randomBytes(6).toString('base64url')
+}
+
+async function validateEmailDeliverability(email: string): Promise<boolean> {
+  try {
+    const domain = email.split('@')[1]
+    const records = await dns.resolveMx(domain)
+    return records && records.length > 0
+  } catch (err) {
+    return false
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -46,6 +57,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, full_name, role, phone, branch_id } = result.data
+
+    // STEP 0: Deliverability Check (Prevent Bounces)
+    const isDeliverable = await validateEmailDeliverability(email)
+    if (!isDeliverable) {
+      return NextResponse.json(
+        { error: `The domain for ${email} is invalid or has no mail servers. Please check for typos.` },
+        { status: 400 }
+      )
+    }
 
     if (!canAssignRole(currentUser.role, role)) {
       return NextResponse.json(
