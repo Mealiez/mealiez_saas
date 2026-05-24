@@ -112,13 +112,6 @@ export default function LoginForm() {
           {isLoading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
-
-      <div className="mt-6 text-center text-sm text-gray-600 hidden md:block">
-        Don't have an account?{' '}
-        <Link href="/register" className="text-indigo-600 font-medium hover:underline">
-          Create one now
-        </Link>
-      </div>
     </div>
   )
 }

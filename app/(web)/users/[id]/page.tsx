@@ -32,9 +32,12 @@ async function UserDetails({ id }: { id: string }) {
     return (
       <div className="p-8 text-center">
         <p className="text-gray-500">User not found or you don't have access.</p>
-        <Button asChild className="mt-4">
-          <Link href="/users">Back to Users</Link>
-        </Button>
+        <Link 
+          href="/users" 
+          className="mt-4 inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+        >
+          Back to Users
+        </Link>
       </div>
     )
   }
@@ -47,11 +50,12 @@ async function UserDetails({ id }: { id: string }) {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild className="rounded-xl border border-gray-100 shadow-sm">
-          <Link href="/users">
-            <ChevronLeft size={20} />
-          </Link>
-        </Button>
+        <Link 
+          href="/users" 
+          className="inline-flex items-center justify-center rounded-xl border border-gray-100 shadow-sm h-10 w-10 bg-white hover:bg-gray-50 transition-colors"
+        >
+          <ChevronLeft size={20} className="text-gray-900" />
+        </Link>
         <div>
           <h1 className="text-2xl font-black tracking-tight text-gray-900 uppercase leading-none">User Profile</h1>
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">Member Administration & Audit Trail</p>

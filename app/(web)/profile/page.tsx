@@ -188,7 +188,7 @@ export default function MyProfilePage() {
       if (!res.ok) throw new Error(data.error || 'Verification failed');
 
       toast.success('Email updated successfully!');
-      setUser(prev => ({ ...prev, email: emailForm.new_email }));
+      setUser((prev: any) => ({ ...prev, email: emailForm.new_email }));
       setEmailForm({ new_email: '', otp: '', step: 'request' });
     } catch (err: any) {
       toast.error(err.message);

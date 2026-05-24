@@ -20,6 +20,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
 
 interface SessionDetails {
   id: string;

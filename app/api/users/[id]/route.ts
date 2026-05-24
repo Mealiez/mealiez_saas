@@ -73,7 +73,7 @@ export async function DELETE(
     }
 
     // Security check: must be same tenant
-    if (user.tenant_id !== currentUser.tenant_id && currentUser.role !== 'superadmin') {
+    if (user.tenant_id !== currentUser.tenant_id && (currentUser.role as string) !== 'superadmin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

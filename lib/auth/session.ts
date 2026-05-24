@@ -86,7 +86,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     is_active: profile.is_active,
     branch_id: profile.branch_id,
     avatar_url: profile.avatar_url,
-    tenant_logo: profile.tenants?.logo_url
+    tenant_logo: (profile.tenants as any)?.logo_url
   }
 }
 
