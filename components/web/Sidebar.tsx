@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { 
   LayoutDashboard, 
   Users as UsersIcon, 
@@ -156,11 +157,14 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Footer Sidebar Section */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/80 shrink-0">
-        <div className={cn(
-          "flex items-center gap-3 px-2 mb-4 py-2 rounded-xl bg-slate-800/40 border border-slate-700/30 transition-all overflow-hidden",
-          !isOpen && "justify-center"
-        )}>
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-inner shrink-0 overflow-hidden">
+        <Link 
+          href="/profile"
+          className={cn(
+            "flex items-center gap-3 px-2 mb-4 py-2 rounded-xl bg-slate-800/40 border border-slate-700/30 transition-all overflow-hidden hover:bg-slate-800 group",
+            !isOpen && "justify-center"
+          )}
+        >
+          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-inner shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
             {user.avatar_url ? (
               <img src={user.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
             ) : (
@@ -169,7 +173,7 @@ export default function Sidebar({ user }: SidebarProps) {
           </div>
           {isOpen && (
             <div className="flex-1 min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
-              <p className="text-xs font-bold text-slate-100 truncate">
+              <p className="text-xs font-bold text-slate-100 truncate group-hover:text-white transition-colors">
                 {user.full_name}
               </p>
               <p className="text-[10px] text-slate-400 truncate uppercase font-bold tracking-tighter">
@@ -177,7 +181,7 @@ export default function Sidebar({ user }: SidebarProps) {
               </p>
             </div>
           )}
-        </div>
+        </Link>
         <SidebarSignOut isCollapsed={!isOpen} />
       </div>
     </aside>
