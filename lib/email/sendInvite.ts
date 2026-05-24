@@ -11,10 +11,12 @@ export async function sendInviteEmail(
   let retries = 3;
   let lastError;
 
+  const emailAddress = process.env.EMAIL_FROM || "no-reply@notify.mealiez.in";
+
   while (retries > 0) {
     try {
       const { data, error } = await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Mealiez <no-reply@notify.mealiez.in>",
+        from: `Mealiez <${emailAddress}>`,
         to: userEmail,
         subject: 'Welcome to Mealiez',
         html: template,

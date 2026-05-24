@@ -25,8 +25,10 @@ export async function sendOtpEmail(email: string, type: 'registration' | 'email_
   // 3. Send via Resend
   const template = getOtpEmailTemplate(otp, type);
   
+  const emailAddress = process.env.EMAIL_FROM || 'no-reply@notify.mealiez.in';
+  
   const { error: resendError } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || 'Mealiez <no-reply@notify.mealiez.in>',
+    from: `Mealiez <${emailAddress}>`,
     to: email,
     subject: type === 'registration' ? 'Verify your Mealiez account' : 'Confirm your email change',
     html: template
