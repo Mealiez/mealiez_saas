@@ -9,7 +9,8 @@ import {
   ListTodo, 
   ChevronLeft,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -31,6 +32,12 @@ const menuItems = [
     label: 'Attendance Logs',
     href: '/attendance/logs',
     icon: ClipboardList,
+    roles: ['admin', 'manager']
+  },
+  {
+    label: 'Schedule Session',
+    href: '/attendance/schedules',
+    icon: Bell,
     roles: ['admin', 'manager']
   }
 ];

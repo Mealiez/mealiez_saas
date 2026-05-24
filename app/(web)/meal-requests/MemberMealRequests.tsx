@@ -21,6 +21,7 @@ interface MealSettings {
   breakfast_start: string;
   lunch_start: string;
   dinner_start: string;
+  timezone: string;
 }
 
 export default function MemberMealRequests() {
@@ -61,9 +62,9 @@ export default function MemberMealRequests() {
 
     const tick = () => {
       setTimers({
-        breakfast: getMealSessionStatus(settings.breakfast_start),
-        lunch:     getMealSessionStatus(settings.lunch_start),
-        dinner:    getMealSessionStatus(settings.dinner_start)
+        breakfast: getMealSessionStatus(settings.breakfast_start, settings.timezone),
+        lunch:     getMealSessionStatus(settings.lunch_start, settings.timezone),
+        dinner:    getMealSessionStatus(settings.dinner_start, settings.timezone)
       });
     };
 
@@ -85,7 +86,21 @@ export default function MemberMealRequests() {
       if (!res.ok) throw new Error('Action failed');
       
       toast.success(action === 'request' ? 'Meal requested!' : 'Request cancelled');
-      fetchRequests();
+      
+      // OPTIMISTIC UI: Update local state immediately
+      if (action === 'request') {
+        setRequests(prev => [...prev, { 
+          id: Math.random().toString(), 
+          session_date: date, 
+          meal_type: type, 
+          status: 'requested',
+          requested_at: new Date().toISOString()
+        }]);
+      } else {
+        setRequests(prev => prev.filter(r => !(r.session_date === date && r.meal_type === type)));
+      }
+
+      await fetchRequests(); // Sync with DB
     } catch (err) {
       toast.error('Something went wrong');
     } finally {
@@ -189,7 +204,7 @@ export default function MemberMealRequests() {
              
              <div className="pt-4 border-t border-gray-50">
                 <p className="text-[10px] font-bold text-gray-400 uppercase text-center tracking-widest">
-                   * Real-time cutoff applied based on session start times
+                   * Real-time cutoff applied based on {settings?.timezone} time
                 </p>
              </div>
           </CardContent>
@@ -213,7 +228,7 @@ export default function MemberMealRequests() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {requests.map((req) => (
+                {[...requests].sort((a,b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime()).map((req) => (
                   <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-8 py-4 font-bold text-gray-900">{req.session_date}</td>
                     <td className="px-8 py-4 capitalize font-medium text-gray-600">{req.meal_type}</td>

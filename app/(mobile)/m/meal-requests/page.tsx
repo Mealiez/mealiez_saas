@@ -27,6 +27,7 @@ interface MealSettings {
   breakfast_start: string;
   lunch_start: string;
   dinner_start: string;
+  timezone: string;
 }
 
 export default function MobileMealRequests() {
@@ -70,9 +71,9 @@ export default function MobileMealRequests() {
 
     const tick = () => {
       setTimers({
-        breakfast: getMealSessionStatus(settings.breakfast_start),
-        lunch:     getMealSessionStatus(settings.lunch_start),
-        dinner:    getMealSessionStatus(settings.dinner_start)
+        breakfast: getMealSessionStatus(settings.breakfast_start, settings.timezone),
+        lunch:     getMealSessionStatus(settings.lunch_start, settings.timezone),
+        dinner:    getMealSessionStatus(settings.dinner_start, settings.timezone)
       });
     };
 
@@ -94,7 +95,20 @@ export default function MobileMealRequests() {
       if (!res.ok) throw new Error();
       
       toast.success(action === 'request' ? 'Booked!' : 'Cancelled');
-      fetchRequests();
+      
+      // OPTIMISTIC UI: Update local state immediately
+      if (action === 'request') {
+        setRequests(prev => [...prev, { 
+          id: Math.random().toString(), 
+          session_date: date, 
+          meal_type: type, 
+          status: 'requested' 
+        }]);
+      } else {
+        setRequests(prev => prev.filter(r => !(r.session_date === date && r.meal_type === type)));
+      }
+
+      await fetchRequests(); // Sync with DB
     } catch (err) {
       toast.error('Sync failed');
     } finally {

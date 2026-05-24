@@ -53,6 +53,7 @@ export async function PATCH(request: NextRequest) {
       lunch_end:       body.lunch_end,
       dinner_start:    body.dinner_start,
       dinner_end:      body.dinner_end,
+      timezone:        body.timezone,
     })
     .eq('tenant_id', user.tenant_id)
     .select()

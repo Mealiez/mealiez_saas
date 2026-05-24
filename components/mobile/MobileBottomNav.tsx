@@ -6,7 +6,7 @@ import {
   Home, 
   QrCode, 
   Camera, 
-  UtensilsCrossed, 
+  Utensils, 
   Package 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'

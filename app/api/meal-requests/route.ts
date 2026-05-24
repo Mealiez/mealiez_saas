@@ -31,9 +31,8 @@ export async function GET(request: NextRequest) {
       )
     `)
     .eq('tenant_id', user.tenant_id)
+    .eq('status', 'requested') // Only fetch active requests for the UI indicators
 
-  // Manager+ can see all, Member only sees their own unless they specify?
-  // Actually, RLS handles the isolation, but we enforce logic here too.
   if (user.role === 'member') {
     query = query.eq('user_id', user.id)
   } else if (userId) {
@@ -80,6 +79,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
 
   if (action === 'request') {
+    // We use a hard delete then insert or hard update to ensure status is 'requested'
     const { data, error } = await supabase
       .from('meal_requests')
       .upsert({
@@ -94,18 +94,26 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('[MEAL_REQUEST_POST_ERROR]', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
     return NextResponse.json({ success: true, data })
   } else {
+    // For cancellation, we just delete the record to avoid unique constraint issues on next re-book
+    // and to keep the GET query simple.
     const { error } = await supabase
       .from('meal_requests')
-      .update({ status: 'cancelled' })
+      .delete()
       .eq('tenant_id', user.tenant_id)
       .eq('user_id', user.id)
       .eq('session_date', session_date)
       .eq('meal_type', meal_type)
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('[MEAL_REQUEST_CANCEL_ERROR]', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
     return NextResponse.json({ success: true })
   }
 }
