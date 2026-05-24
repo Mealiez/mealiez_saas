@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.mealiez.app',
   appName: 'Mealiez',
   server: {
-    url: 'https://mealiez.netlify.app/',
+    url: 'https://portal.mealiez.in/',
     cleartext: false
   }
 };

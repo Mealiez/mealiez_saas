@@ -211,6 +211,24 @@ export default function ManagerDashboard() {
         </Card>
       </div>
 
+      {/* Branch Distribution Section */}
+      <div className="space-y-4">
+         <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Geographic Distribution</h3>
+         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {(stats as any).branch_distribution?.map((branch: any) => (
+               <Card key={branch.name} className="rounded-3xl border border-gray-100 shadow-sm bg-white p-6">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{branch.name}</p>
+                  <div className="flex items-center justify-between">
+                     <span className="text-2xl font-black text-gray-900">{branch.count}</span>
+                     <Badge variant="outline" className="rounded-full bg-blue-50 text-blue-700 border-blue-100 text-[10px] font-black uppercase">
+                        {Math.round((branch.count / (stats.total_requests || 1)) * 100)}%
+                     </Badge>
+                  </div>
+               </Card>
+            ))}
+         </div>
+      </div>
+
       {/* Quick Links */}
       <div className="space-y-4">
          <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Quick Actions</h3>
