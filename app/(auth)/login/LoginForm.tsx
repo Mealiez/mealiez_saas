@@ -45,7 +45,13 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+    <div className="bg-white rounded-3xl shadow-xl shadow-blue-500/5 border border-gray-100 p-10">
+      <div className="flex flex-col items-center mb-10">
+        <img src="/logo.png" alt="Mealiez" className="h-10 w-auto mb-4" />
+        <div className="h-1 w-8 bg-blue-600 rounded-full mb-4"></div>
+        <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.4em]">Secure Access</h2>
+      </div>
+
       {isRegistered && (
         <div className="mb-6 p-4 bg-green-50 border border-green-100 text-green-700 rounded-lg text-sm">
           Account created! Please sign in.
@@ -107,7 +113,7 @@ export default function LoginForm() {
         </button>
       </form>
 
-      <div className="mt-6 text-center text-sm text-gray-600">
+      <div className="mt-6 text-center text-sm text-gray-600 hidden md:block">
         Don't have an account?{' '}
         <Link href="/register" className="text-indigo-600 font-medium hover:underline">
           Create one now

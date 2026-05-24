@@ -72,8 +72,8 @@ export default function MobileLayout({
       {/* MOBILE HEADER */}
       <header className="h-16 shrink-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-6 flex items-center justify-between z-40 sticky top-0">
         <div className="flex items-center gap-2">
-           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <span className="text-white font-black text-xs uppercase">M</span>
+           <div className="w-10 h-10 overflow-hidden flex items-center justify-center">
+              <img src="/icon.png" alt="Mealiez" className="w-full h-full object-contain" />
            </div>
            <span className="text-lg font-black tracking-tighter uppercase text-gray-900">Mealiez</span>
         </div>

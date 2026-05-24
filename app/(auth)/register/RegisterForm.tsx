@@ -1,15 +1,29 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, X, ImageIcon } from 'lucide-react'
+import { Upload, X, ImageIcon, Mail, Loader2, Monitor, ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export default function RegisterForm() {
   const router = useRouter()
   const supabase = createClient()
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   const [email, setEmail] = useState('')
+  // ... rest
+  // ... rest of state
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [orgName, setOrgName] = useState('')
@@ -115,6 +129,27 @@ export default function RegisterForm() {
     }
   }
 
+  if (isMobile) {
+    return (
+      <div className="bg-white rounded-3xl shadow-xl shadow-blue-500/5 border border-gray-100 p-10 text-center space-y-8 animate-in fade-in zoom-in duration-500">
+        <div className="flex flex-col items-center">
+          <img src="/logo.png" alt="Mealiez" className="h-10 w-auto mb-6" />
+          <div className="h-20 w-20 rounded-3xl bg-red-50 flex items-center justify-center text-red-600 shadow-inner mb-6">
+            <Monitor size={40} />
+          </div>
+          <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Desktop Required</h2>
+          <p className="text-xs font-bold text-gray-500 leading-relaxed uppercase tracking-tight mt-4">
+            New organization setup and onboarding can only be completed on a desktop browser.
+          </p>
+        </div>
+
+        <Link href="/login" className="flex items-center justify-center gap-2 text-blue-600 font-black uppercase text-[10px] tracking-widest hover:underline transition-all">
+          <ArrowLeft size={14} /> Back to Login
+        </Link>
+      </div>
+    )
+  }
+
   if (step === 'otp') {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
@@ -166,7 +201,13 @@ export default function RegisterForm() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+    <div className="bg-white rounded-3xl shadow-xl shadow-blue-500/5 border border-gray-100 p-10">
+      <div className="flex flex-col items-center mb-10">
+        <img src="/logo.png" alt="Mealiez" className="h-10 w-auto mb-4" />
+        <div className="h-1 w-8 bg-blue-600 rounded-full mb-4"></div>
+        <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.4em]">Onboarding</h2>
+      </div>
+
       {error && (
         <div className="mb-6 p-4 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl">
           {error}

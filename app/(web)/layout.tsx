@@ -19,12 +19,14 @@ export default async function WebLayout({
         {/* TOP HEADER */}
         <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-20 shrink-0">
           <div className="max-w-7xl mx-auto h-full px-8 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
+              <img src="/logo.png" alt="Mealiez" className="h-7 w-auto" />
+              <div className="h-8 w-px bg-gray-100 hidden sm:block" />
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-tight leading-none mb-0.5">
-                  Current Workspace
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                  Active Workspace
                 </span>
-                <span className="text-sm font-bold text-slate-900">
+                <span className="text-xs font-bold text-slate-900">
                   {new Date().toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     month: 'short', 
