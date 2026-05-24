@@ -37,7 +37,7 @@ export default async function AttendanceLogsPage({
     .from('attendance_records')
     .select(`
       id, marked_at, meal_type, attendance_source,
-      user:users ( full_name, email ),
+      user:users ( full_name ),
       branch:branches ( name )
     `)
     .gte('marked_at', `${filterDate}T00:00:00`)

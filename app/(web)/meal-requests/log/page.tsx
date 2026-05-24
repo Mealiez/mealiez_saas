@@ -16,7 +16,6 @@ interface MealRequestLog {
   requested_at: string;
   users: {
     full_name: string;
-    email: string;
     branches: { name: string } | null;
   };
 }
@@ -44,8 +43,7 @@ export default function DetailedLog() {
   }, [filterDate]);
 
   const filteredLogs = logs.filter(log => 
-    log.users.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    log.users.email.toLowerCase().includes(search.toLowerCase())
+    log.users.full_name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -62,7 +60,7 @@ export default function DetailedLog() {
             <Search size={12} /> Search User
           </Label>
           <Input 
-            placeholder="Name or email..." 
+            placeholder="Name..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="rounded-xl border-gray-200"
@@ -124,7 +122,6 @@ export default function DetailedLog() {
                         </div>
                         <div className="flex flex-col">
                           <span className="font-bold text-gray-900 leading-tight">{log.users.full_name}</span>
-                          <span className="text-[10px] text-gray-400">{log.users.email}</span>
                         </div>
                       </div>
                     </td>

@@ -14,7 +14,6 @@ interface LogEntry {
   attendance_source: string;
   user: {
     full_name: string;
-    email: string;
   };
   branch: {
     name: string;
@@ -111,7 +110,6 @@ export default function AttendanceLogsContent({ initialLogs, branches }: Attenda
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{log.user.full_name}</span>
-                      <span className="text-[10px] text-gray-400">{log.user.email}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
