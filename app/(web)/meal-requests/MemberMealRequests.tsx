@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Utensils, Loader2, Timer, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getMealSessionStatus, MealSessionStatus } from '@/lib/utils/meal-times';
+import { getMealSessionStatus, MealSessionStatus, getMealSequenceStatus, MealWindowStatus } from '@/lib/utils/meal-times';
 
 interface MealRequest {
   id: string;
@@ -29,7 +29,7 @@ export default function MemberMealRequests() {
   const [settings, setSettings] = useState<MealSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
-  const [timers, setTimers] = useState<Record<string, MealSessionStatus>>({});
+  const [sequenceStatus, setSequenceStatus] = useState<Record<string, { windowStatus: MealWindowStatus; timeLeft: string }>>({});
 
   const fetchRequests = async () => {
     try {
@@ -56,16 +56,12 @@ export default function MemberMealRequests() {
     Promise.all([fetchRequests(), fetchSettings()]).finally(() => setIsLoading(false));
   }, []);
 
-  // Countdown timer logic
+  // Countdown timer logic using sequence
   useEffect(() => {
     if (!settings) return;
 
     const tick = () => {
-      setTimers({
-        breakfast: getMealSessionStatus(settings.breakfast_start, settings.timezone),
-        lunch:     getMealSessionStatus(settings.lunch_start, settings.timezone),
-        dinner:    getMealSessionStatus(settings.dinner_start, settings.timezone)
-      });
+      setSequenceStatus(getMealSequenceStatus(settings));
     };
 
     tick(); // Initial call
@@ -88,17 +84,16 @@ export default function MemberMealRequests() {
       toast.success(action === 'request' ? 'Meal requested!' : 'Request cancelled');
       
       // OPTIMISTIC UI: Update local state immediately
-      if (action === 'request') {
-        setRequests(prev => [...prev, { 
+      setRequests(prev => {
+        const otherRequests = prev.filter(r => !(r.session_date === date && r.meal_type === type));
+        return [...otherRequests, { 
           id: Math.random().toString(), 
           session_date: date, 
           meal_type: type, 
-          status: 'requested',
+          status: action === 'request' ? 'requested' : 'cancelled',
           requested_at: new Date().toISOString()
-        }]);
-      } else {
-        setRequests(prev => prev.filter(r => !(r.session_date === date && r.meal_type === type)));
-      }
+        }];
+      });
 
       await fetchRequests(); // Sync with DB
     } catch (err) {
@@ -112,55 +107,73 @@ export default function MemberMealRequests() {
 
   const renderSlot = (date: string, type: string, label: string) => {
     const request = requests.find(r => r.session_date === date && r.meal_type === type);
-    const isRequested = request?.status === 'requested';
+    const statusInfo = sequenceStatus[type];
+    const windowStatus = statusInfo?.windowStatus || 'not_opened';
+    
+    // Determine final status based on window and user request
+    let displayStatus: 'book' | 'ended' | 'not opened' | 'booked' | 'cancel' = 'book';
+    if (request?.status === 'requested') displayStatus = 'booked';
+    else if (request?.status === 'cancelled') displayStatus = 'cancel';
+    else if (windowStatus === 'ended') displayStatus = 'ended';
+    else if (windowStatus === 'not_opened') displayStatus = 'not opened';
+    else displayStatus = 'book';
+
+    const isBooked = displayStatus === 'booked';
+    const isCancelled = displayStatus === 'cancel';
+    const isEnded = displayStatus === 'ended';
+    const isNotOpened = displayStatus === 'not opened';
+    const canAction = displayStatus === 'book' || displayStatus === 'cancel' || displayStatus === 'booked';
+    const isDisabled = isEnded || isNotOpened;
     const key = `${date}-${type}`;
-    const status = timers[type];
-    const isClosed = status?.isClosed;
 
     return (
       <div className={cn(
         "flex items-center justify-between p-5 rounded-2xl border transition-all",
-        isClosed && !isRequested ? "bg-gray-100/50 border-gray-200 grayscale opacity-60" : "bg-gray-50 border-gray-100 hover:bg-white hover:shadow-sm"
+        isDisabled ? "bg-gray-100/50 border-gray-200 grayscale opacity-60" : "bg-gray-50 border-gray-100 hover:bg-white hover:shadow-sm"
       )}>
         <div className="flex items-center gap-4">
           <div className={cn(
             "p-2.5 rounded-xl transition-colors",
-            isRequested ? "bg-green-100 text-green-600" : isClosed ? "bg-gray-200 text-gray-400" : "bg-blue-100 text-blue-600"
+            isBooked ? "bg-green-100 text-green-600" : 
+            isCancelled ? "bg-red-100 text-red-600" :
+            isDisabled ? "bg-gray-200 text-gray-400" : "bg-blue-100 text-blue-600"
           )}>
-            {isClosed && !isRequested ? <Lock size={20} /> : <Utensils size={20} />}
+            {isDisabled ? <Lock size={20} /> : <Utensils size={20} />}
           </div>
           <div>
             <div className="flex items-center gap-2">
                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest leading-none">{label}</p>
-               {!isClosed && !isRequested && (
+               {displayStatus === 'book' && (
                  <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
                     <Timer size={10} />
-                    <span className="text-[10px] font-bold font-mono">{status?.timeLeft}</span>
+                    <span className="text-[10px] font-bold font-mono">{statusInfo?.timeLeft}</span>
                  </div>
                )}
             </div>
-            <p className="text-base font-black text-gray-900 mt-0.5">
-               {isRequested ? 'Booking Confirmed' : isClosed ? 'Window Closed' : 'Accepting Requests'}
+            <p className="text-base font-black text-gray-900 mt-0.5 uppercase tracking-tighter">
+               {displayStatus}
             </p>
           </div>
         </div>
         
         <Button
           size="sm"
-          variant={isRequested ? "outline" : "default"}
-          onClick={() => handleAction(date, type, isRequested ? 'cancel' : 'request')}
-          disabled={isSubmitting === key || (isClosed && !isRequested)}
+          variant={isBooked ? "outline" : "default"}
+          onClick={() => handleAction(date, type, isBooked ? 'cancel' : 'request')}
+          disabled={isSubmitting === key || isDisabled}
           className={cn(
-            "rounded-xl font-bold h-10 px-6",
-            !isRequested && !isClosed && "bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/10"
+            "rounded-xl font-bold h-10 px-6 uppercase text-xs tracking-widest",
+            !isBooked && !isDisabled && "bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/10"
           )}
         >
           {isSubmitting === key ? (
             <Loader2 size={16} className="animate-spin" />
-          ) : isRequested ? (
-            'Cancel Booking'
-          ) : isClosed ? (
-            'Closed'
+          ) : isBooked ? (
+            'Cancel'
+          ) : isEnded ? (
+            'Ended'
+          ) : isNotOpened ? (
+            'Locked'
           ) : (
             'Book Now'
           )}
@@ -240,7 +253,7 @@ export default function MemberMealRequests() {
                           req.status === 'requested' ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"
                         )}
                       >
-                        {req.status}
+                        {req.status === 'requested' ? 'booked' : 'cancel'}
                       </Badge>
                     </td>
                     <td className="px-8 py-4 text-right text-gray-400 font-medium">

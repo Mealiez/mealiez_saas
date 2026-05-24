@@ -8,6 +8,8 @@ export interface MealSessionStatus {
   secondsLeft: number;
 }
 
+export type MealWindowStatus = 'open' | 'ended' | 'not_opened';
+
 /**
  * Calculates if a meal booking is closed and how much time remains.
  * @param startTime string - format "HH:mm:ss" or "HH:mm"
@@ -74,4 +76,35 @@ export function getMealSessionStatus(startTime: string, timezone: string = 'UTC'
     timeLeft,
     secondsLeft: diffSec
   };
+}
+
+/**
+ * Determines the window status for all meal slots in sequence.
+ * - Breakfast is open until its start time.
+ * - Lunch opens after Breakfast ends, until its start time.
+ * - Dinner opens after Lunch ends, until its start time.
+ */
+export function getMealSequenceStatus(
+  settings: { breakfast_start: string; lunch_start: string; dinner_start: string; timezone: string }
+): Record<string, { windowStatus: MealWindowStatus; timeLeft: string }> {
+  const bf = getMealSessionStatus(settings.breakfast_start, settings.timezone);
+  const ln = getMealSessionStatus(settings.lunch_start, settings.timezone);
+  const dn = getMealSessionStatus(settings.dinner_start, settings.timezone);
+
+  const statuses: Record<string, { windowStatus: MealWindowStatus; timeLeft: string }> = {
+    breakfast: {
+      windowStatus: bf.isClosed ? 'ended' : 'open',
+      timeLeft: bf.timeLeft
+    },
+    lunch: {
+      windowStatus: !bf.isClosed ? 'not_opened' : (ln.isClosed ? 'ended' : 'open'),
+      timeLeft: ln.timeLeft
+    },
+    dinner: {
+      windowStatus: !ln.isClosed ? 'not_opened' : (dn.isClosed ? 'ended' : 'open'),
+      timeLeft: dn.timeLeft
+    }
+  };
+
+  return statuses;
 }

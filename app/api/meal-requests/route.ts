@@ -115,9 +115,10 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({ success: true, data })
     } else {
+      // CHANGE: Instead of delete, update status to 'cancelled'
       const { error } = await supabase
         .from('meal_requests')
-        .delete()
+        .update({ status: 'cancelled' })
         .eq('tenant_id', user.tenant_id)
         .eq('user_id', user.id)
         .eq('session_date', session_date)
