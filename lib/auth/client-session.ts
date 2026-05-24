@@ -38,7 +38,7 @@ export async function getClientUser(): Promise<AuthUser | null> {
   const supabase = createClient()
   const { data: profile, error } = await supabase
     .from('users')
-    .select('full_name, is_active, role')
+    .select('id, full_name, is_active, role, branch_id, avatar_url')
     .eq('auth_id', user.id)
     .single()
 
@@ -50,13 +50,15 @@ export async function getClientUser(): Promise<AuthUser | null> {
   if (finalRole === 'owner') finalRole = 'admin'
 
   return {
-    id: user.id,
+    id: profile.id,
     auth_id: user.id,
     tenant_id,
     role: finalRole as AuthUser['role'],
     full_name: profile.full_name,
     email: user.email!,
-    is_active: profile.is_active
+    is_active: profile.is_active,
+    branch_id: profile.branch_id,
+    avatar_url: profile.avatar_url
   }
 }
 
