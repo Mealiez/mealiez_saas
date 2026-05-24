@@ -23,10 +23,9 @@ export const config = {
   matcher: [
     /*
      * Match ALL request paths EXCEPT:
-     * - /m/*          mobile routes (Capacitor, client-only)
      * - /api/onboarding/* public API endpoint
      * - _next internals and static files
      */
-    '/((?!m/|api/onboarding|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api/onboarding|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

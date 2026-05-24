@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getClientUser, type AuthUser, signOut } from '@/lib/auth/client-session'
+import { getClientUser, type AuthUser, signOut, onAuthStateChange } from '@/lib/auth/client-session'
 import MobileBottomNav from '@/components/mobile/MobileBottomNav'
 import { Loader2, UserCircle, Monitor, LogOut } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 
 export default function MobileLayout({
   children,
@@ -15,13 +15,37 @@ export default function MobileLayout({
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const pathname = usePathname()
+
+  const isLoginPage = pathname === '/login'
 
   useEffect(() => {
-    getClientUser().then(u => {
-      setUser(u)
-      setLoading(false)
+    let isMounted = true
+
+    const checkAuth = async () => {
+      const u = await getClientUser()
+      if (isMounted) {
+        setUser(u)
+        setLoading(false)
+      }
+    }
+
+    checkAuth()
+
+    const subscription = onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+        router.replace('/login')
+      } else if (event === 'SIGNED_IN') {
+        checkAuth()
+      }
     })
-  }, [])
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [router])
 
   const handleAdminLogout = async () => {
     await signOut()
@@ -49,9 +73,9 @@ export default function MobileLayout({
            </div>
            
            <div className="space-y-2">
-              <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Desktop Only</h2>
+              <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Access Denied</h2>
               <p className="text-sm font-bold text-gray-500 leading-relaxed uppercase tracking-tight">
-                Administrators can login only on desktop. Please use a desktop browser to manage your organization.
+                It is not accessible, use desktop.
               </p>
            </div>
 
@@ -65,6 +89,11 @@ export default function MobileLayout({
         </div>
       </div>
     )
+  }
+
+  // If logged out or on login page, don't show shell
+  if (!user || isLoginPage) {
+    return <>{children}</>
   }
 
   return (

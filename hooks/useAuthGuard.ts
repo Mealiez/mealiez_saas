@@ -31,7 +31,7 @@ export function useAuthGuard(options?: {
       if (!isMounted) return
 
       if (!currentUser) {
-        router.replace(options?.redirectTo ?? '/m/login')
+        router.replace(options?.redirectTo ?? '/login')
         return
       }
 
@@ -54,7 +54,7 @@ export function useAuthGuard(options?: {
         setUser(null)
         setIsAuthorized(false)
         setIsLoading(false)
-        router.replace('/m/login')
+        router.replace('/login')
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         checkAuth()
       }

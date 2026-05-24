@@ -39,9 +39,37 @@ export default function LoginForm() {
       return
     }
 
-    // Success: navigate to dashboard
-    router.push('/dashboard')
-    router.refresh()
+    // Success: Get user role and decide redirect
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) throw new Error('Auth failed')
+
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('auth_id', authUser.id)
+        .single()
+
+      const isMobile = window.innerWidth < 768
+      const role = profile?.role
+
+      if (isMobile && role === 'admin') {
+        setError('It is not accessible, use desktop')
+        await supabase.auth.signOut()
+        setIsLoading(false)
+        return
+      }
+
+      if (isMobile && (role === 'member' || role === 'manager')) {
+        router.push('/m/home')
+      } else {
+        router.push('/dashboard')
+      }
+      router.refresh()
+    } catch (err) {
+      // Fallback
+      router.push('/dashboard')
+    }
   }
 
   return (

@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getMealSessionStatus, MealSessionStatus } from '@/lib/utils/meal-times';
+import { getMealSequenceStatus, MealWindowStatus } from '@/lib/utils/meal-times';
 
 interface MealRequest {
   id: string;
@@ -37,7 +37,7 @@ export default function MobileMealRequests() {
   const [settings, setSettings] = useState<MealSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
-  const [timers, setTimers] = useState<Record<string, MealSessionStatus>>({});
+  const [sequenceStatus, setSequenceStatus] = useState<Record<string, { windowStatus: MealWindowStatus; timeLeft: string }>>({});
 
   const fetchRequests = async () => {
     try {
@@ -65,16 +65,12 @@ export default function MobileMealRequests() {
     }
   }, [user]);
 
-  // Countdown timer logic
+  // Countdown timer logic using sequence
   useEffect(() => {
     if (!settings) return;
 
     const tick = () => {
-      setTimers({
-        breakfast: getMealSessionStatus(settings.breakfast_start, settings.timezone),
-        lunch:     getMealSessionStatus(settings.lunch_start, settings.timezone),
-        dinner:    getMealSessionStatus(settings.dinner_start, settings.timezone)
-      });
+      setSequenceStatus(getMealSequenceStatus(settings));
     };
 
     tick();
@@ -96,17 +92,16 @@ export default function MobileMealRequests() {
       
       toast.success(action === 'request' ? 'Booked!' : 'Cancelled');
       
-      // OPTIMISTIC UI: Update local state immediately
-      if (action === 'request') {
-        setRequests(prev => [...prev, { 
+      // OPTIMISTIC UI
+      setRequests(prev => {
+        const others = prev.filter(r => !(r.session_date === date && r.meal_type === type));
+        return [...others, { 
           id: Math.random().toString(), 
           session_date: date, 
           meal_type: type, 
-          status: 'requested' 
-        }]);
-      } else {
-        setRequests(prev => prev.filter(r => !(r.session_date === date && r.meal_type === type)));
-      }
+          status: action === 'request' ? 'requested' : 'cancelled'
+        }];
+      });
 
       await fetchRequests(); // Sync with DB
     } catch (err) {
@@ -122,20 +117,30 @@ export default function MobileMealRequests() {
 
   const renderSlot = (date: string, type: string) => {
     const req = requests.find(r => r.session_date === date && r.meal_type === type);
-    const isBooked = req?.status === 'requested';
+    const statusInfo = sequenceStatus[type];
+    const windowStatus = statusInfo?.windowStatus || 'not_opened';
+    
+    // Final display status
+    let displayStatus: 'book' | 'ended' | 'not opened' | 'booked' | 'cancel' = 'book';
+    if (req?.status === 'requested') displayStatus = 'booked';
+    else if (req?.status === 'cancelled') displayStatus = 'cancel';
+    else if (windowStatus === 'ended') displayStatus = 'ended';
+    else if (windowStatus === 'not_opened') displayStatus = 'not opened';
+    else displayStatus = 'book';
+
+    const isBooked = displayStatus === 'booked';
+    const isDisabled = displayStatus === 'ended' || displayStatus === 'not opened';
     const key = `${date}-${type}`;
-    const status = timers[type];
-    const isClosed = status?.isClosed;
 
     return (
       <button
         onClick={() => handleAction(date, type, isBooked ? 'cancel' : 'request')}
-        disabled={submitting === key || (isClosed && !isBooked)}
+        disabled={submitting === key || isDisabled}
         className={cn(
           "w-full p-5 rounded-[2rem] border-2 flex items-center justify-between transition-all active:scale-[0.97]",
           isBooked 
             ? "bg-green-50 border-green-200 text-green-900" 
-            : isClosed 
+            : isDisabled 
               ? "bg-gray-100 border-gray-200 text-gray-400 grayscale opacity-60"
               : "bg-white border-gray-100 text-gray-900 shadow-sm"
         )}
@@ -143,22 +148,22 @@ export default function MobileMealRequests() {
         <div className="flex items-center gap-4">
            <div className={cn(
              "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors",
-             isBooked ? "bg-green-200/50" : isClosed ? "bg-gray-200" : "bg-blue-50"
+             isBooked ? "bg-green-200/50" : isDisabled ? "bg-gray-200" : "bg-blue-50"
            )}>
-              {isClosed && !isBooked ? <Lock size={20} /> : <Utensils size={24} className={isBooked ? "text-green-600" : "text-blue-500"} />}
+              {isDisabled ? <Lock size={20} /> : <Utensils size={24} className={isBooked ? "text-green-600" : "text-blue-500"} />}
            </div>
            <div className="text-left">
               <div className="flex items-center gap-2">
                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none">{type}</p>
-                 {!isClosed && !isBooked && (
+                 {displayStatus === 'book' && (
                    <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
                       <Timer size={10} />
-                      <span className="text-[9px] font-bold font-mono">{status?.timeLeft}</span>
+                      <span className="text-[9px] font-bold font-mono">{statusInfo?.timeLeft}</span>
                    </div>
                  )}
               </div>
-              <p className="text-lg font-black tracking-tight mt-0.5">
-                 {isBooked ? 'Confirmed' : isClosed ? 'Closed' : 'Book Now'}
+              <p className="text-lg font-black tracking-tight mt-0.5 uppercase">
+                 {displayStatus}
               </p>
            </div>
         </div>
@@ -216,7 +221,7 @@ export default function MobileMealRequests() {
                           "rounded-full text-[9px] font-black uppercase tracking-tighter px-3 py-0.5",
                           req.status === 'requested' ? "border-green-100 text-green-700 bg-green-50" : "border-red-100 text-red-700 bg-red-50"
                         )}>
-                          {req.status}
+                          {req.status === 'requested' ? 'booked' : 'cancel'}
                         </Badge>
                      </div>
                    ))}
