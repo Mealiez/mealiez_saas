@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/auth/session'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import UserAttendanceLogs from '@/components/web/UserAttendanceLogs'
 
 async function UserDetails({ id }: { id: string }) {
   const supabase = await createClient()
+  const supabaseAdmin = createAdminClient()
   
   const { data: user, error } = await supabase
     .from('users')
@@ -36,6 +38,10 @@ async function UserDetails({ id }: { id: string }) {
       </div>
     )
   }
+
+  // Fetch Auth Email
+  const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(user.auth_id)
+  const userEmail = authUser?.user?.email || 'N/A'
 
   return (
     <div className="space-y-8">
@@ -120,10 +126,10 @@ async function UserDetails({ id }: { id: string }) {
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  <Shield size={12} className="text-blue-500" />
-                  System ID
+                  <Mail size={12} className="text-blue-500" />
+                  Email Address
                 </div>
-                <p className="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded select-all">{user.id}</p>
+                <p className="text-sm font-bold text-gray-900">{userEmail}</p>
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
