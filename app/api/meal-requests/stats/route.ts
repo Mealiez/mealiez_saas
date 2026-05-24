@@ -33,10 +33,21 @@ export async function GET(request: NextRequest) {
       console.error('[STATS_COUNT_ERROR]', countError)
     }
 
-    // 2. Meal requests for today
+    // 2. Meal requests for today with branch info
     const { data: requests, error: requestsError } = await supabase
       .from('meal_requests')
-      .select('id, user_id, meal_type, status')
+      .select(`
+        id, 
+        user_id, 
+        meal_type, 
+        status,
+        users (
+          branch_id,
+          branches (
+            name
+          )
+        )
+      `)
       .eq('tenant_id', user.tenant_id)
       .eq('session_date', date)
       .eq('status', 'requested')
@@ -47,7 +58,6 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. Attendance records for today (actual presence)
-    // Refactored: join with attendance_sessions to get meal_type and filter by date
     const { data: attendance, error: attError } = await supabase
       .from('attendance_records')
       .select(`
@@ -69,6 +79,14 @@ export async function GET(request: NextRequest) {
     const requestedUserIds = new Set(requests?.map(r => r.user_id) || [])
     const markedRequests = attendance?.filter(a => requestedUserIds.has(a.user_id)).length || 0
 
+    // Branch Distribution
+    const branchMap: Record<string, number> = {}
+    requests?.forEach(req => {
+      const branchName = (req.users as any)?.branches?.name || 'Unassigned'
+      branchMap[branchName] = (branchMap[branchName] || 0) + 1
+    })
+    const branchDistribution = Object.entries(branchMap).map(([name, count]) => ({ name, count }))
+
     const stats = {
       total_requests: requests?.length || 0,
       marked_requests: markedRequests,
@@ -83,7 +101,8 @@ export async function GET(request: NextRequest) {
         present_with_request: markedRequests,
         present_without_request: (attendance?.length || 0) - markedRequests,
         requested_but_absent: (requests?.length || 0) - markedRequests
-      }
+      },
+      branch_distribution: branchDistribution
     }
 
     return NextResponse.json({ data: stats })
