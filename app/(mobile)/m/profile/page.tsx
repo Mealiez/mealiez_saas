@@ -120,7 +120,7 @@ export default function MobileProfilePage() {
     router.push('/login');
   };
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="animate-spin text-blue-600" size={32} />
@@ -147,7 +147,7 @@ export default function MobileProfilePage() {
                        {personalInfo.avatar_url ? (
                          <img src={personalInfo.avatar_url} alt="Profile" className="h-full w-full object-cover" />
                        ) : (
-                         <span className="text-3xl font-black text-blue-600 uppercase">{user.full_name.charAt(0)}</span>
+                         <span className="text-3xl font-black text-blue-600 uppercase">{user?.full_name?.charAt(0) || '?'}</span>
                        )}
                        {isUploading && (
                          <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
@@ -164,10 +164,10 @@ export default function MobileProfilePage() {
            </div>
            <CardContent className="pt-12 pb-6 px-6">
               <div className="flex items-center justify-between mb-1">
-                 <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">{user.full_name}</h2>
-                 <Badge className="bg-blue-50 text-blue-700 border-none font-black text-[8px] uppercase tracking-widest">{user.role}</Badge>
+                 <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">{user?.full_name}</h2>
+                 <Badge className="bg-blue-50 text-blue-700 border-none font-black text-[8px] uppercase tracking-widest">{user?.role}</Badge>
               </div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{user.tenants?.name}</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{user?.tenants?.name}</p>
            </CardContent>
         </Card>
 
