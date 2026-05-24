@@ -8,14 +8,16 @@ export type TenantRole = 'admin' | 'manager' | 'member'
 export type UserRole = TenantRole
 
 export type AuthUser = {
-  id:          string
-  auth_id:     string
-  tenant_id:   string
-  full_name:   string
-  email?:      string
-  role:        TenantRole
-  is_active:   boolean
-  branch_id?:  string
+  id:           string
+  auth_id:      string
+  tenant_id:    string
+  full_name:    string
+  email?:       string
+  role:         TenantRole
+  is_active:    boolean
+  branch_id?:   string
+  avatar_url?:  string | null
+  tenant_logo?: string | null
 }
 
 export type SuperAdminUser = {

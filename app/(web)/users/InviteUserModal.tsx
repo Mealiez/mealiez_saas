@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { InviteUserSchema } from '@/lib/validations/users'
 import { type UserRole, getAssignableRoles, ROLE_LABELS } from '@/lib/auth/roles'
+import { createClient } from '@/lib/supabase/client'
+import { UserCircle, X, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Branch {
   id: string
@@ -14,8 +17,10 @@ interface InviteUserModalProps {
 }
 
 export default function InviteUserModal({ currentUserRole }: InviteUserModalProps) {
+  const supabase = createClient()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -28,8 +33,37 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
     full_name: '',
     phone: '',
     role: assignableRoles[0] || 'member' as UserRole,
-    branch_id: ''
+    branch_id: '',
+    avatar_url: ''
   })
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatar')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatar')
+        .getPublicUrl(filePath)
+
+      setForm(prev => ({ ...prev, avatar_url: publicUrl }))
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload avatar')
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   // Fetch branches
   useEffect(() => {
@@ -78,7 +112,8 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
           full_name: '', 
           phone: '', 
           role: assignableRoles[0] || 'member',
-          branch_id: branches[0]?.id || '' 
+          branch_id: branches[0]?.id || '',
+          avatar_url: ''
         })
         setTimeout(() => {
           setIsOpen(false)
@@ -90,6 +125,7 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
         setError('You do not have permission')
       } else if (res.status === 400) {
         setFieldErrors(data.details?.fieldErrors || null)
+        setError(data.error || 'Validation failed')
       } else {
         setError('Something went wrong. Try again.')
       }
@@ -104,110 +140,144 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all active:scale-95"
       >
         Invite Member
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Invite Team Member</h2>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200 relative">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Invite Member</h2>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-1">Add a new teammate to your organization</p>
+              </div>
+              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">&times;</button>
             </div>
 
             {error && (
-              <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded">
+              <div className="mb-6 p-4 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="mb-4 p-3 text-sm text-green-600 bg-green-50 border border-green-100 rounded">
+              <div className="mb-6 p-4 text-xs font-bold text-green-600 bg-green-50 border border-green-100 rounded-xl">
                 {success}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={form.full_name}
-                  onChange={e => setForm({ ...form, full_name: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-                {fieldErrors?.full_name && <p className="mt-1 text-xs text-red-500">{fieldErrors.full_name[0]}</p>}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Avatar Upload */}
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <div className="relative">
+                  <div className="h-16 w-16 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                    {form.avatar_url ? (
+                      <img src={form.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <UserCircle className="text-gray-200" size={40} />
+                    )}
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                        <Loader2 className="animate-spin text-blue-600" size={16} />
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    disabled={isUploading}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-gray-900 uppercase">Profile Photo</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mt-0.5">Click to upload avatar</p>
+                  {form.avatar_url && (
+                    <button 
+                      type="button" 
+                      onClick={() => setForm(prev => ({ ...prev, avatar_url: '' }))}
+                      className="text-[10px] font-black text-red-500 uppercase mt-1 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. John Doe"
+                  value={form.full_name}
+                  onChange={e => setForm({ ...form, full_name: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                />
+                {fieldErrors?.full_name && <p className="mt-1.5 text-[10px] font-bold text-red-500 ml-1">{fieldErrors.full_name[0]}</p>}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Email Address</label>
                 <input
                   type="email"
                   required
+                  placeholder="member@organization.com"
                   value={form.email}
                   onChange={e => setForm({ ...form, email: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
                 />
-                {fieldErrors?.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email[0]}</p>}
+                {fieldErrors?.email && <p className="mt-1.5 text-[10px] font-bold text-red-500 ml-1">{fieldErrors.email[0]}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Phone (Optional)</label>
-                <input
-                  type="text"
-                  value={form.phone}
-                  onChange={e => setForm({ ...form, phone: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-
-              {branches.length > 0 && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Mess Branch</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Role</label>
                   <select
-                    required
-                    value={form.branch_id}
-                    onChange={e => setForm({ ...form, branch_id: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={form.role}
+                    onChange={e => setForm({ ...form, role: e.target.value as UserRole })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
                   >
-                    {branches.map(branch => (
-                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                    {assignableRoles.map(role => (
+                      <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                     ))}
                   </select>
-                  {fieldErrors?.branch_id && <p className="mt-1 text-xs text-red-500">{fieldErrors.branch_id[0]}</p>}
                 </div>
-              )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Role</label>
-                <select
-                  value={form.role}
-                  onChange={e => setForm({ ...form, role: e.target.value as UserRole })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  {assignableRoles.map(role => (
-                    <option key={role} value={role}>{ROLE_LABELS[role]}</option>
-                  ))}
-                </select>
+                {branches.length > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Branch</label>
+                    <select
+                      required
+                      value={form.branch_id}
+                      onChange={e => setForm({ ...form, branch_id: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                    >
+                      {branches.map(branch => (
+                        <option key={branch.id} value={branch.id}>{branch.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="px-6 py-3 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+                  disabled={isLoading || isUploading}
+                  className="px-8 py-3 text-xs font-black uppercase tracking-widest text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
                 >
-                  {isLoading ? 'Sending...' : 'Send Invitation'}
+                  {isLoading ? 'Inviting...' : 'Send Invitation'}
                 </button>
               </div>
             </form>

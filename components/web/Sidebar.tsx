@@ -72,6 +72,8 @@ interface SidebarProps {
   user: {
     full_name: string
     role: string
+    avatar_url?: string | null
+    tenant_logo?: string | null
   }
 }
 
@@ -107,8 +109,12 @@ export default function Sidebar({ user }: SidebarProps) {
       {/* Logo Section */}
       <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-            <ChefHat className="h-5 w-5 text-white" />
+          <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0 overflow-hidden">
+            {user.tenant_logo ? (
+              <img src={user.tenant_logo} alt="Logo" className="h-full w-full object-cover" />
+            ) : (
+              <ChefHat className="h-5 w-5 text-white" />
+            )}
           </div>
           {isOpen && (
             <span className="text-xl font-bold text-white tracking-tight truncate animate-in fade-in slide-in-from-left-2 duration-300">
@@ -154,8 +160,12 @@ export default function Sidebar({ user }: SidebarProps) {
           "flex items-center gap-3 px-2 mb-4 py-2 rounded-xl bg-slate-800/40 border border-slate-700/30 transition-all overflow-hidden",
           !isOpen && "justify-center"
         )}>
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-inner shrink-0">
-            {user.full_name.charAt(0)}
+          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-inner shrink-0 overflow-hidden">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+            ) : (
+              user.full_name.charAt(0)
+            )}
           </div>
           {isOpen && (
             <div className="flex-1 min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">

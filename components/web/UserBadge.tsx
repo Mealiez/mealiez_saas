@@ -13,6 +13,7 @@ interface UserBadgeProps {
     full_name: string;
     role: string;
     created_at: string;
+    avatar_url?: string | null;
     tenants?: { name: string } | null;
     branches?: { name: string } | null;
   };
@@ -88,8 +89,12 @@ export default function UserBadge({ user }: UserBadgeProps) {
 
           {/* User Info Section */}
           <div className="flex-1 flex flex-col items-center pt-8 px-6 text-center">
-            <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-2xl border-2 border-white shadow-md mb-4 uppercase">
-              {user.full_name.charAt(0)}
+            <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-2xl border-2 border-white shadow-md mb-4 uppercase overflow-hidden">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt={user.full_name} className="h-full w-full object-cover" />
+              ) : (
+                user.full_name.charAt(0)
+              )}
             </div>
             
             <h2 className="text-xl font-black text-gray-900 leading-tight uppercase tracking-tight mb-1">{user.full_name}</h2>

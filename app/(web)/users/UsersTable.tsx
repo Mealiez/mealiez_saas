@@ -32,6 +32,7 @@ type UserRow = {
   role: UserRole
   is_active: boolean
   created_at: string
+  avatar_url?: string | null
 }
 
 interface UsersTableProps {
@@ -119,8 +120,12 @@ export default function UsersTable({ initialUsers, currentUser }: UsersTableProp
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs border border-gray-200">
-                      {user.full_name.charAt(0)}
+                    <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs border border-gray-200 overflow-hidden">
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt={user.full_name} className="h-full w-full object-cover" />
+                      ) : (
+                        user.full_name.charAt(0)
+                      )}
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">

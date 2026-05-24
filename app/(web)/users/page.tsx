@@ -22,7 +22,8 @@ export default async function UsersPage() {
       phone, 
       role, 
       is_active, 
-      created_at
+      created_at,
+      avatar_url
     `)
     .order('created_at', { ascending: false })
     .limit(20)

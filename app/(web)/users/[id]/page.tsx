@@ -17,7 +17,10 @@ async function UserDetails({ id }: { id: string }) {
     .from('users')
     .select(`
       *,
-      tenants (name),
+      tenants (
+        name,
+        logo_url
+      ),
       branches (name)
     `)
     .eq('id', id)
@@ -56,8 +59,12 @@ async function UserDetails({ id }: { id: string }) {
             <div className="h-2 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
             <CardHeader className="pb-4">
               <div className="flex flex-col items-center text-center">
-                <div className="h-24 w-24 rounded-full bg-blue-50 border-4 border-white shadow-md flex items-center justify-center text-blue-600 font-black text-3xl mb-4 uppercase">
-                  {user.full_name.charAt(0)}
+                <div className="h-24 w-24 rounded-full bg-blue-50 border-4 border-white shadow-md flex items-center justify-center text-blue-600 font-black text-3xl mb-4 uppercase overflow-hidden">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.full_name} className="h-full w-full object-cover" />
+                  ) : (
+                    user.full_name.charAt(0)
+                  )}
                 </div>
                 <CardTitle className="text-xl font-bold uppercase tracking-tight">{user.full_name}</CardTitle>
                 <Badge variant="outline" className="mt-2 capitalize font-black text-[10px] tracking-widest px-3 py-1 bg-gray-50 border-gray-200">

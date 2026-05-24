@@ -32,7 +32,9 @@ const RegisterSchema = z.object({
   email:     z.string().email(),
   password:  z.string().min(8).max(72),
   full_name: z.string().min(2).max(100).trim(),
-  org_name:  z.string().min(2).max(100).trim()
+  org_name:  z.string().min(2).max(100).trim(),
+  logo_url:   z.string().url().optional().nullable(),
+  avatar_url: z.string().url().optional().nullable()
 })
 
 export async function POST(request: NextRequest) {
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, password, full_name, org_name } = result.data
+    const { email, password, full_name, org_name, logo_url, avatar_url } = result.data
 
     // STEP 2 — Check email and create auth user
     const { data: userData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -73,7 +75,9 @@ export async function POST(request: NextRequest) {
       p_auth_id:   auth_id,
       p_full_name: full_name,
       p_org_name:  org_name,
-      p_plan:      'trial'
+      p_plan:      'trial',
+      p_logo_url:   logo_url,
+      p_avatar_url: avatar_url
     })
 
     if (dbError) {

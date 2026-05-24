@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, full_name, role, phone, branch_id } = result.data
+    const { email, full_name, role, phone, branch_id, avatar_url } = result.data
 
     // STEP 0: Deliverability Check (Prevent Bounces)
     const isDeliverable = await validateEmailDeliverability(email)
@@ -132,7 +132,8 @@ export async function POST(request: NextRequest) {
         phone,
         branch_id,
         is_active: true,
-        must_change_password: true // Forced change on login
+        must_change_password: true, // Forced change on login
+        avatar_url
       }, {
         onConflict: 'auth_id' // Assuming 1 user = 1 tenant based on architecture note
       })
