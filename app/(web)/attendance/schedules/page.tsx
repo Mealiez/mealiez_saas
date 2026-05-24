@@ -28,7 +28,7 @@ interface Schedule {
   start_time: string;
   days_of_week: number[];
   is_active: boolean;
-  scan_mode: 'member' | 'admin';
+  scan_mode: 'session' | 'member';
   branch_id?: string;
   branches?: { name: string };
 }
@@ -48,7 +48,7 @@ export default function AttendanceSchedulesPage() {
     label: '',
     start_time: '12:00',
     days_of_week: [1, 2, 3, 4, 5],
-    scan_mode: 'member',
+    scan_mode: 'session' as 'session' | 'member',
     branch_id: '',
   });
 
@@ -208,10 +208,10 @@ export default function AttendanceSchedulesPage() {
                       <select 
                         className="w-full h-12 px-3 rounded-xl border border-gray-100 bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                         value={newSchedule.scan_mode}
-                        onChange={e => setNewSchedule({...newSchedule, scan_mode: e.target.value as 'member' | 'admin'})}
+                        onChange={e => setNewSchedule({...newSchedule, scan_mode: e.target.value as 'session' | 'member'})}
                       >
-                        <option value="member">Member Scan (Mode A)</option>
-                        <option value="admin">Admin Scan (Mode B)</option>
+                        <option value="session">Member Scan (Mode A)</option>
+                        <option value="member">Admin Scan (Mode B)</option>
                       </select>
                     </div>
                     <div className="space-y-1.5">
@@ -323,7 +323,7 @@ export default function AttendanceSchedulesPage() {
                     </div>
                     <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
                       <Settings2 size={12} />
-                      Mode {s.scan_mode === 'member' ? 'A' : 'B'}
+                      Mode {s.scan_mode === 'session' ? 'A' : 'B'}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-400">

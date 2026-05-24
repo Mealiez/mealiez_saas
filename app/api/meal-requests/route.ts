@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query.order('session_date', { ascending: false })
 
   if (error) {
+    console.error('[MEAL_REQUESTS_GET_ERROR]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
