@@ -7,7 +7,6 @@ import { z } from 'zod'
 
 /**
  * Schema for inviting a new user to a tenant.
- * Note: 'owner' is intentionally excluded as it is only assigned during onboarding.
  */
 export const InviteUserSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -19,18 +18,19 @@ export const InviteUserSchema = z.object({
     .max(20)
     .optional()
     .nullable(),
-  role: z.enum(['admin', 'manager', 'member'], {
-    error: 'Role must be admin, manager, or member'
-  })
+  role: z.enum(['manager', 'member'], { // ← UPDATED: admin removed
+    error: 'Role must be manager or member'
+  }),
+  branch_id: z.string().uuid('Invalid branch').optional().nullable(),
+  avatar_url: z.string().url().optional().nullable()
 })
 
 /**
  * Schema for updating a user's role.
- * Note: 'owner' is excluded to prevent unauthorized role escalation.
  */
 export const UpdateRoleSchema = z.object({
-  role: z.enum(['admin', 'manager', 'member'], {
-    error: 'Role must be admin, manager, or member'
+  role: z.enum(['manager', 'member'], { // ← UPDATED: admin removed
+    error: 'Role must be manager or member'
   })
 })
 

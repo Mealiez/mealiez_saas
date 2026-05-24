@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 import { UpdateMealPlanItemSchema } from '@/lib/validations/meals';
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate';
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for meal plan item modifications.
+ */
+export const runtime = 'nodejs'
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -17,7 +23,7 @@ export async function PATCH(
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'meal_management');
     if (!isEnabled) return featureDisabledResponse();
 
-    if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+    if (!['admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -91,7 +97,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -103,7 +109,7 @@ export async function DELETE(
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'meal_management');
     if (!isEnabled) return featureDisabledResponse();
 
-    if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+    if (!['admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

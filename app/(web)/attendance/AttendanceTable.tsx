@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import CreateSessionModal from './CreateSessionModal';
+import MyQRModal from '@/components/web/MyQRModal';
+import MemberScannerModal from '@/components/web/MemberScannerModal';
+import { AuthUser } from '@/lib/auth/roles';
 
 /*
  * CLIENT COMPONENT: Attendance List Table
@@ -17,14 +20,21 @@ export type AttendanceSession = {
   is_active: boolean;
   started_at: string;
   ended_at: string | null;
+  scan_mode?: 'session' | 'member';
+  branch_name?: string;
 };
 
 interface AttendanceTableProps {
   initialSessions: AttendanceSession[];
   canManage: boolean;
+  currentUser: AuthUser;
 }
 
-export default function AttendanceTable({ initialSessions, canManage }: AttendanceTableProps) {
+export default function AttendanceTable({ 
+  initialSessions, 
+  canManage,
+  currentUser 
+}: AttendanceTableProps) {
   const [sessions, setSessions] = useState<AttendanceSession[]>(initialSessions);
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
@@ -57,10 +67,18 @@ export default function AttendanceTable({ initialSessions, canManage }: Attendan
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        {canManage && (
-          <CreateSessionModal onSessionCreated={handleSessionCreated} />
-        )}
+      <div className="flex justify-between items-center">
+        <div>
+           {!canManage && <MyQRModal />}
+        </div>
+        <div className="flex gap-3">
+          {canManage && (
+            <CreateSessionModal 
+              onSessionCreated={handleSessionCreated} 
+              currentUser={currentUser}
+            />
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -70,6 +88,7 @@ export default function AttendanceTable({ initialSessions, canManage }: Attendan
               <tr>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Label</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Meal Type</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Branch</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Date</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500 text-center">Status</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Started</th>
@@ -89,6 +108,13 @@ export default function AttendanceTable({ initialSessions, canManage }: Attendan
                     <td className="px-6 py-4 font-semibold text-gray-900">{session.label}</td>
                     <td className="px-6 py-4">
                       <span className="capitalize text-gray-600">{session.meal_type}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {session.branch_name && (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase rounded-md border border-slate-200">
+                          {session.branch_name}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-gray-600">{session.session_date}</td>
                     <td className="px-6 py-4 text-center">
@@ -123,6 +149,19 @@ export default function AttendanceTable({ initialSessions, canManage }: Attendan
                           {isLoading === session.id ? 'Closing...' : 'Close'}
                         </button>
                       )}
+                      
+                      {session.is_active && !canManage && (
+                        <MemberScannerModal />
+                      )}
+
+                      {session.is_active && !canManage && (
+                        <MyQRModal trigger={
+                          <button className="text-indigo-600 hover:text-indigo-800 font-bold text-sm">
+                            My QR
+                          </button>
+                        } />
+                      )}
+
                       <Link
                         href={`/attendance/${session.id}`}
                         className="text-gray-600 hover:text-gray-900 font-bold text-sm"

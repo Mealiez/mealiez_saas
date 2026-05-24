@@ -5,14 +5,25 @@ import { UpdateSessionSchema } from '@/lib/validations/attendance';
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate';
 import { generateQRToken } from '@/lib/attendance/token';
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for session modification and token logic.
+ */
+export const runtime = 'nodejs'
+
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // ROLE-BASED AUTH: Only manager+ can fetch session details/summary
+    if (!['admin', 'manager'].includes(currentUser.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'attendance_tracking');
@@ -30,7 +41,7 @@ export async function GET(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Fetch session directly to get is_active and other details for token generation
+    // Fetch session directly to get details for token generation
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
       .select('id, is_active, meal_type, session_date, tenant_id')
@@ -74,7 +85,7 @@ export async function PATCH(
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'attendance_tracking');
     if (!isEnabled) return featureDisabledResponse();
 
-    if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+    if (!['admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -95,14 +106,20 @@ export async function PATCH(
       updateData.is_active = validated.data.is_active;
       if (!validated.data.is_active) {
         updateData.ended_at = new Date().toISOString();
+      } else {
+        updateData.ended_at = null;
       }
+    }
+
+    if (validated.data.scan_mode !== undefined) {
+      updateData.scan_mode = validated.data.scan_mode;
     }
 
     const { error: updateError } = await supabase
       .from('attendance_sessions')
       .update(updateData)
       .eq('id', params.id)
-      .eq('tenant_id', currentUser.tenant_id); // Security: ensure tenant match
+      .eq('tenant_id', currentUser.tenant_id);
 
     if (updateError) throw updateError;
 
@@ -114,7 +131,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -126,7 +143,7 @@ export async function DELETE(
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'attendance_tracking');
     if (!isEnabled) return featureDisabledResponse();
 
-    if (!['owner', 'admin'].includes(currentUser.role)) {
+    if (!['admin'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

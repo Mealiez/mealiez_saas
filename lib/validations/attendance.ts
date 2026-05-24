@@ -19,12 +19,16 @@ export const CreateSessionSchema = z.object({
     .uuid('Invalid plan item ID')
     .optional()
     .nullable(),
+  scan_mode: z.enum(['session', 'member']).default('session'),
+  branch_id: z.string().uuid('Invalid branch ID').optional().nullable(),
 });
 
 export const UpdateSessionSchema = z.object({
   label: z.string().min(2).max(100).trim()
     .optional(),
   is_active: z.boolean().optional(),
+  scan_mode: z.enum(['session', 'member']).optional(),
+  status: z.enum(['pending', 'attendance_live', 'finalized', 'deduction_completed']).optional(),
 });
 
 export const MarkAttendanceSchema = z.object({

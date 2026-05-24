@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/auth/session'
 import { UpdateRoleSchema } from '@/lib/validations/users'
 import { ROLE_RANK, canAssignRole, type UserRole } from '@/lib/auth/roles'
 
-// Create a Supabase admin client using service role key
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * 
+ * WHY RUNTIME NODEJS?
+ * This route uses sensitive Supabase Admin operations and complex role hierarchy logic.
+ * Enforcing the Node.js runtime ensures stable execution and full access to 'crypto'
+ * and Node-native environment variables.
+ */
+export const runtime = 'nodejs'
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Lazy-initialize the admin client inside the request handler.
+  // This prevents build-time environment variable evaluation crashes.
+  const supabaseAdmin = createAdminClient()
+
   try {
     // STEP 1: Get current user
     const currentUser = await getCurrentUser()
@@ -27,8 +29,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // STEP 2: requireOwnerOrAdmin
-    if (!['owner', 'admin'].includes(currentUser.role)) {
+    // STEP 2: requireAdmin
+    if (currentUser.role !== 'admin') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
@@ -58,10 +60,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // STEP 6: Block owner demotion — immutable
-    if (targetUser.role === 'owner') {
-      return NextResponse.json(
-        { error: 'Owner role cannot be changed' },
+    // STEP 6: Block lateral demotion — admins cannot modify other admins
+    if (targetUser.role === 'admin' && targetUser.auth_id !== currentUser.auth_id) {
+       return NextResponse.json(
+        { error: 'Cannot modify another administrator' },
         { status: 403 }
       )
     }
@@ -75,7 +77,6 @@ export async function PATCH(
     }
 
     // STEP 7.5: Current user must strictly outrank the TARGET USER'S CURRENT ROLE
-    // This blocks lateral moves: Admin cannot modify another Admin
     if (
       ROLE_RANK[currentUser.role] 
       <= ROLE_RANK[targetUser.role as UserRole]
@@ -89,7 +90,6 @@ export async function PATCH(
     }
 
     // STEP 8: Current user must also strictly outrank THE NEW ROLE being assigned
-    // This blocks role promotion above inviter's level
     if (!canAssignRole(currentUser.role, result.data.role)) {
       return NextResponse.json(
         {
@@ -124,7 +124,6 @@ export async function PATCH(
 
     if (metadataError) {
       console.error('[METADATA SYNC FAILED]', { auth_id: targetUser.auth_id, error: metadataError })
-      // Non-fatal, return success
     }
 
     // STEP 11: Return 200

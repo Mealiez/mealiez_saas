@@ -1,53 +1,67 @@
-/*
- * SERVER-ONLY: Route and role guards.
- * Import only in server components and API routes.
- */
-
-import { getCurrentUser, requireAuth, type AuthUser } from '@/lib/auth/session'
+import { getCurrentUser, getSuperAdminUser } from './session'
+import { isAdminOrAbove, isManagerOrAbove, SuperAdminUser } from './roles'
 import { redirect } from 'next/navigation'
 
 /**
- * requireRole()
- * Enforces that the authenticated user has one of the specified roles.
+ * requireAuth()
+ * Used in server components to enforce basic tenant membership.
  */
-export async function requireRole(
-  allowedRoles: AuthUser['role'][]
-): Promise<AuthUser> {
-  const user = await requireAuth()
-
-  if (!allowedRoles.includes(user.role)) {
-    redirect('/dashboard?error=unauthorized')
+export async function requireAuth() {
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    redirect('/login')
   }
 
   return user
 }
 
 /**
- * requireOwnerOrAdmin()
- * Shortcut for owner or admin access.
+ * requireAdmin()
+ * Restricts access to users with the Admin role.
+ * (Formerly requireOwnerOrAdmin)
  */
-export async function requireOwnerOrAdmin(): Promise<AuthUser> {
-  return requireRole(['owner', 'admin'])
-}
-
-/**
- * requireOwner()
- * Shortcut for owner-only access.
- */
-export async function requireOwner(): Promise<AuthUser> {
-  return requireRole(['owner'])
-}
-
-/**
- * withTenantId()
- * Utility to append tenant_id to a query object for double-enforcement.
- */
-export async function withTenantId<T extends object>(
-  query: T
-): Promise<T & { tenant_id: string }> {
-  const user = await requireAuth()
-  return {
-    ...query,
-    tenant_id: user.tenant_id,
+export async function requireAdmin() {
+  const user = await getCurrentUser()
+  
+  if (!user) redirect('/login')
+  
+  if (!isAdminOrAbove(user.role)) {
+    redirect('/dashboard')
   }
+
+  return user
+}
+
+/**
+ * requireManager()
+ * Restricts access to Manager role or higher.
+ */
+export async function requireManager() {
+  const user = await getCurrentUser()
+  
+  if (!user) redirect('/login')
+
+  if (!isManagerOrAbove(user.role)) {
+    redirect('/dashboard')
+  }
+
+  return user
+}
+
+/**
+ * requireSuperAdmin()
+ * Restricts access to platform-level Super Admins.
+ * Used exclusively in /super/ dashboard.
+ */
+export async function requireSuperAdmin(): Promise<SuperAdminUser> {
+  const superUser = await getSuperAdminUser()
+
+  if (!superUser) {
+    redirect('/super/login')
+    // redirect() throws, following error is for TS narrowing
+    throw new Error('Not reachable')
+  }
+
+  return superUser
 }

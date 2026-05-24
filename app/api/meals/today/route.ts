@@ -1,7 +1,6 @@
 /*
  * PUBLIC-ISH: Authenticated but lightweight.
  * Used by mobile home screen on every app open.
- * Returns today's available meals only.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,7 +8,14 @@ import { getCurrentUser } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { checkFeatureEnabled } from '@/lib/features/gate';
 
-export async function GET(req: NextRequest) {
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for real-time meal availability checks.
+ */
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic';
+
+export async function GET(_req: NextRequest) {
   try {
     const today = new Date().toISOString().split('T')[0];
     const currentUser = await getCurrentUser();

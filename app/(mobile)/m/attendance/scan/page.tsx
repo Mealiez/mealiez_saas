@@ -274,8 +274,8 @@ export default function ScanAttendancePage() {
         {/* ALREADY MARKED STATE */}
         {scanState === 'already_marked' && (
           <div className="bg-white rounded-[2rem] p-8 w-full max-w-sm text-center space-y-6 animate-in zoom-in">
-            <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
-              <Info className="w-10 h-10 text-blue-600" />
+            <div className="bg-yellow-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
+              <Info className="w-10 h-10 text-yellow-600" />
             </div>
             <div className="space-y-2">
               <h2 className="text-2xl font-black text-gray-900 leading-tight">Already Marked</h2>

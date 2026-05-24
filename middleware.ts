@@ -9,7 +9,14 @@ export async function middleware(request: NextRequest) {
   // Protected routes: requireAuth() in (web)/layout.tsx
   // Public routes:    no auth check in (auth)/layout.tsx
   // Mobile routes:    useAuthGuard hook in each page
-  return await updateSession(request)
+  const response = await updateSession(request)
+
+  // Forward pathname so server components (e.g. super/layout.tsx)
+  // can read the current route without importing next/navigation.
+  // Used to skip auth guard on /super/login (public entry point).
+  response.headers.set('x-pathname', request.nextUrl.pathname)
+
+  return response
 }
 
 export const config = {

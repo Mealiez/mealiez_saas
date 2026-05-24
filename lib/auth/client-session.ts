@@ -7,7 +7,9 @@
  */
 
 import { createClient } from '@/lib/supabase/client'
-import type { AuthUser } from '@/lib/auth/session'
+import type { AuthUser } from './roles'
+export type { AuthUser }
+import type { Session } from '@supabase/supabase-js'
 
 /**
  * getClientSession()
@@ -36,7 +38,7 @@ export async function getClientUser(): Promise<AuthUser | null> {
   const supabase = createClient()
   const { data: profile, error } = await supabase
     .from('users')
-    .select('full_name, is_active')
+    .select('id, full_name, is_active, role, branch_id, avatar_url')
     .eq('auth_id', user.id)
     .single()
 
@@ -44,14 +46,19 @@ export async function getClientUser(): Promise<AuthUser | null> {
     return null
   }
 
+  let finalRole = (profile.role || role || 'member') as string
+  if (finalRole === 'owner') finalRole = 'admin'
+
   return {
-    id: user.id,
+    id: profile.id,
     auth_id: user.id,
     tenant_id,
-    role: role || 'member',
+    role: finalRole as AuthUser['role'],
     full_name: profile.full_name,
     email: user.email!,
-    is_active: profile.is_active
+    is_active: profile.is_active,
+    branch_id: profile.branch_id,
+    avatar_url: profile.avatar_url
   }
 }
 
@@ -70,7 +77,7 @@ export async function signOut() {
  * Subscribes to authentication state changes.
  */
 export function onAuthStateChange(
-  callback: (event: string, session: any) => void
+  callback: (event: string, session: Session | null) => void
 ) {
   const supabase = createClient()
   const { data: { subscription } } = supabase.auth.onAuthStateChange(callback)

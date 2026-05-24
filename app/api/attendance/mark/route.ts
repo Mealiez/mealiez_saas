@@ -5,6 +5,12 @@ import { MarkAttendanceSchema } from '@/lib/validations/attendance';
 import { verifyQRToken } from '@/lib/attendance/token';
 import { checkFeatureEnabled } from '@/lib/features/gate';
 
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for stable QR token verification and session handling.
+ */
+export const runtime = 'nodejs'
+
 /*
  * CRITICAL SECURITY: Mark attendance endpoint.
  * This endpoint is called by members scanning a QR.
@@ -26,6 +32,14 @@ export async function POST(req: NextRequest) {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // ROLE-BASED AUTH: Only members can mark their own attendance via QR
+    if (currentUser.role !== 'member') {
+      return NextResponse.json(
+        { error: 'Managers and Admins cannot mark their own attendance via QR scan.', code: 'STAFF_SELF_MARK_FORBIDDEN' },
+        { status: 403 }
+      );
     }
 
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'attendance_tracking');
@@ -62,10 +76,10 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // STEP 6: Verify session is still active
+    // STEP 6: Verify session is still active and check branch assignment
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
-      .select('id, is_active, label')
+      .select('id, is_active, label, branch_id')
       .eq('id', result.payload.session_id)
       .eq('tenant_id', currentUser.tenant_id)
       .single();
@@ -78,6 +92,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'This attendance session is closed.', code: 'SESSION_CLOSED' },
         { status: 409 }
+      );
+    }
+
+    // BRANCH VERIFICATION: Ensure user belongs to the session's branch
+    // IF session.branch_id is NULL, it's a GLOBAL session (accessible to all branches)
+    if (session.branch_id && session.branch_id !== (currentUser.branch_id || null)) {
+      return NextResponse.json(
+        { 
+          error: 'Branch Mismatch: You are not registered with this branch.', 
+          code: 'BRANCH_MISMATCH' 
+        },
+        { status: 403 }
       );
     }
 

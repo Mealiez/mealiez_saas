@@ -1,8 +1,5 @@
 /*
  * SECURITY: Meal Plans API
- * tenant_id sourced from JWT only.
- * Feature flag: meal_management must be enabled.
- * Role requirement: manager+ for write operations.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,6 +7,12 @@ import { getCurrentUser } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { CreateMealPlanSchema } from '@/lib/validations/meals';
 import { checkFeatureEnabled, featureDisabledResponse } from '@/lib/features/gate';
+
+/**
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for meal scheduling and planning operations.
+ */
+export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
   try {
@@ -79,7 +82,7 @@ export async function POST(req: NextRequest) {
     const isEnabled = await checkFeatureEnabled(currentUser.tenant_id, 'meal_management');
     if (!isEnabled) return featureDisabledResponse();
 
-    if (!['owner', 'admin', 'manager'].includes(currentUser.role)) {
+    if (!['admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

@@ -1,11 +1,16 @@
 import { createBrowserClient } from '@supabase/ssr'
 
 /**
- * Use this ONLY in client components and (mobile) routes
+ * createClient()
+ * Lazy-initializes the Supabase client for the browser.
  */
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const url = process.env['NEXT_PUBLIC_SUPABASE_URL']
+  const key = process.env['NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY']
+
+  if (!url || !key) {
+    throw new Error('Missing Supabase configuration')
+  }
+
+  return createBrowserClient(url, key)
 }

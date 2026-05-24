@@ -36,11 +36,11 @@ To support multi-tenant membership per email:
 **Status:** Active
 
 ### Decision
-Role ranks: owner(4) > admin(3) > manager(2) > member(1)
+Role ranks: admin(3) > manager(2) > member(1)
+(Updated from: owner(4) > admin(3) > manager(2) > member(1))
 
 ### Rules
-- Owner role assigned ONLY during tenant onboarding
-- Owner role is immutable (cannot be changed via API)
+- Admin role assigned during tenant onboarding
 - To modify User X, you must strictly outrank X's 
   CURRENT role AND the NEW role being assigned
 - Admins cannot modify other Admins (peers blocked)
@@ -61,3 +61,35 @@ query parameters.
 - API routes: `currentUser.tenant_id` from JWT only
 - RLS: `public.get_tenant_id()` from JWT only
 - Onboarding: set by server, never by client
+
+---
+
+## ADR-005: Super Admin Architecture (Role Refactor)
+
+**Status:** Active  
+**Date:** Thursday, May 14, 2026
+
+### Decision
+The 'owner' tenant role is renamed to 'admin'.
+A new SUPER ADMIN concept is introduced at the
+platform level.
+
+### Tenant Roles (new)
+  admin(3) > manager(2) > member(1)
+
+### Super Admin
+  is_super_admin: true in auth.users.app_metadata
+  No tenant_id — platform-level identity
+  Separate UI: /super/* routes
+  Separate auth: /super/login
+  Separate API: /api/super/* (service role)
+
+### Migration
+  UPDATE public.users SET role='admin' WHERE role='owner'
+  All JWT app_metadata updated on next user sign-in
+  via session.ts getCurrentUser() refresh logic
+
+### Enforcement
+  Tenant routes: getCurrentUser() → TenantUser (no super)
+  Super admin routes: getSuperAdminUser() → SuperAdminUser
+  These two functions NEVER overlap.

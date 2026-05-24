@@ -1,151 +1,47 @@
 /*
  * SECURITY: User Management API
- *
- * tenant_id is ALWAYS sourced from JWT app_metadata.
- * It is NEVER read from request body or query params.
- *
- * ROLE HIERARCHY (high to low):
- *   owner > admin > manager > member
- *
- * Invite rules:
- *   - Only owner or admin can invite users
- *   - Inviter cannot assign a role >= their own role
- *     (admin cannot create another admin or owner)
- *     (owner CAN create admin)
- *
- * owner role is NEVER assignable via invite.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
-import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/auth/session'
 import { InviteUserSchema } from '@/lib/validations/users'
+import { isAdminOrAbove, canAssignRole } from '@/lib/auth/roles'
 import crypto from 'crypto'
-
-// Create a Supabase admin client using service role key
-const supabaseAdmin = createSupabaseAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
-
-const ROLE_RANK: Record<string, number> = {
-  owner:   4,
-  admin:   3,
-  manager: 2,
-  member:  1
-}
-
-function canAssignRole(
-  inviterRole: string,
-  targetRole: string
-): boolean {
-  return ROLE_RANK[inviterRole] > ROLE_RANK[targetRole]
-}
-
-function generateTempPassword(): string {
-  return crypto.randomUUID().replace(/-/g, '') + 'Aa1!'
-}
+import { sendInviteEmail } from '@/lib/email/sendInvite'
+import dns from 'dns/promises'
 
 /**
- * USAGE EXAMPLES:
- * 
- * GET /api/users              → all users
- * GET /api/users?status=active   → active only
- * GET /api/users?status=inactive → inactive only
- * GET /api/users?status=active&page=2&limit=10
+ * PRODUCTION-GRADE API ROUTE
+ * Enforcing Node.js runtime for account creation and link generation.
  */
-export async function GET(request: NextRequest) {
+export const runtime = 'nodejs'
+
+function generateTempPassword(): string {
+  return crypto.randomBytes(6).toString('base64url')
+}
+
+async function validateEmailDeliverability(email: string): Promise<boolean> {
   try {
-    const currentUser = await getCurrentUser()
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const page   = parseInt(searchParams.get('page')  ?? '1')
-    const limit  = parseInt(
-      String(Math.min(
-        Math.max(parseInt(searchParams.get('limit') ?? '20'), 1),
-        100
-      ))
-    )
-    const offset = (page - 1) * limit
-
-    // Status filter: 'active' | 'inactive' | 'all'
-    // Default is 'all' — callers opt in to filtering
-    const statusFilter = searchParams.get('status') ?? 'all'
-    const validStatuses = ['active', 'inactive', 'all']
-    const resolvedStatus = validStatuses.includes(statusFilter)
-      ? statusFilter
-      : 'all'
-
-    const supabase = await createSupabaseServerClient()
-
-    let query = supabase
-      .from('users')
-      .select(`
-        id,
-        auth_id,
-        full_name,
-        phone,
-        role,
-        is_active,
-        created_at
-      `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    // Apply status filter only when explicitly requested
-    if (resolvedStatus === 'active') {
-      query = query.eq('is_active', true)
-    } else if (resolvedStatus === 'inactive') {
-      query = query.eq('is_active', false)
-    }
-    // resolvedStatus === 'all' → no filter applied
-
-    const { data, error, count } = await query
-
-    if (error) {
-      console.error('[GET USERS ERROR]', error)
-      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
-    }
-
-    return NextResponse.json({
-      data: data ?? [],
-      pagination: {
-        page,
-        limit,
-        total:      count ?? 0,
-        totalPages: Math.ceil((count ?? 0) / limit)
-      },
-      filter: {
-        status: resolvedStatus
-        // Frontend can use this to sync UI state
-      }
-    })
+    const domain = email.split('@')[1]
+    const records = await dns.resolveMx(domain)
+    return records && records.length > 0
   } catch (err) {
-    console.error('[GET USERS CRITICAL ERROR]', err)
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 })
+    return false
   }
 }
 
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = createAdminClient()
   try {
     const currentUser = await getCurrentUser()
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!['owner', 'admin'].includes(currentUser.role)) {
+    if (!isAdminOrAbove(currentUser.role)) {
       return NextResponse.json(
-        { error: 'Only owners and admins can invite users' },
+        { error: 'Only admins can invite users' },
         { status: 403 }
       )
     }
@@ -155,99 +51,143 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       return NextResponse.json(
-        { error: 'Validation failed', details: result.error.flatten() },
+        { error: 'Invalid data', details: result.error.flatten() },
         { status: 400 }
       )
     }
 
-    const { email, full_name, phone, role } = result.data
+    const { email, full_name, role, phone, branch_id, avatar_url } = result.data
+
+    // STEP 0: Deliverability Check (Prevent Bounces)
+    const isDeliverable = await validateEmailDeliverability(email)
+    if (!isDeliverable) {
+      return NextResponse.json(
+        { error: `The domain for ${email} is invalid or has no mail servers. Please check for typos.` },
+        { status: 400 }
+      )
+    }
 
     if (!canAssignRole(currentUser.role, role)) {
       return NextResponse.json(
-        { error: `A ${currentUser.role} cannot assign the ${role} role` },
+        { error: `You cannot assign the role: ${role}` },
         { status: 403 }
       )
     }
 
-    // STEP 5: Check email not already in this tenant via RPC
+    // STEP 1: Check if user already exists in auth
     const { data: conflict, error: rpcError } = await supabaseAdmin
-      .rpc('check_user_email_in_tenant', {
-        p_email: email,
-        p_tenant_id: currentUser.tenant_id
+      .rpc('check_user_invitation_conflict', {
+        p_email: email
       })
 
     if (rpcError) {
-      console.error('[RPC ERROR]', rpcError)
-      return NextResponse.json({ error: 'Failed to verify user availability' }, { status: 500 })
+      console.error('[INVITE RPC ERROR]', {
+        message: rpcError.message,
+        code: rpcError.code
+      })
+      return NextResponse.json({ error: 'Setup check failed' }, { status: 500 })
     }
+
+    const tempPassword = generateTempPassword()
+    let auth_id: string
 
     if (conflict) {
-      return NextResponse.json({ error: 'User already in tenant' }, { status: 409 })
+      // User exists in platform, we just fetch their ID to attach membership
+      const { data: existingUser, error: fetchError } = await supabaseAdmin.auth.admin.listUsers()
+      const found = existingUser.users.find(u => u.email === email)
+      
+      if (!found) {
+        return NextResponse.json({ error: 'Conflict detected but user not found' }, { status: 500 })
+      }
+      auth_id = found.id
+    } else {
+      // STEP 2: Create Auth User (New to platform)
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name,
+          tenant_id: currentUser.tenant_id,
+          invited: true
+        }
+      })
+
+      if (authError) {
+        console.error('[AUTH CREATE ERROR]', authError)
+        return NextResponse.json({ error: authError.message }, { status: 500 })
+      }
+      auth_id = authData.user.id
     }
 
-    // STEP 6: Create auth user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      password: generateTempPassword()
-    })
-
-    if (authError) {
-      console.error('[AUTH CREATE ERROR]', authError)
-      return NextResponse.json({ error: 'Failed to create auth user' }, { status: 500 })
-    }
-
-    const auth_id = authData.user.id
-
-    // STEP 7: Insert into public.users
+    // STEP 3: Insert into public.users (Profile/Membership)
+    // We use upsert to handle case where user exists but needs new tenant link
     const { data: newUser, error: insertError } = await supabaseAdmin
       .from('users')
-      .insert({
+      .upsert({
+        auth_id,
         tenant_id: currentUser.tenant_id,
-        auth_id:   auth_id,
-        full_name: full_name,
-        phone:     phone ?? null,
-        role:      role
+        full_name,
+        role,
+        phone,
+        branch_id,
+        is_active: true,
+        must_change_password: true, // Forced change on login
+        avatar_url
+      }, {
+        onConflict: 'auth_id' // Assuming 1 user = 1 tenant based on architecture note
       })
       .select()
       .single()
 
     if (insertError) {
-      console.error('[PROFILE INSERT ERROR]', insertError)
-      await supabaseAdmin.auth.admin.deleteUser(auth_id)
+      console.error('[DB UPSERT ERROR]', insertError)
+      // Only delete if we just created it
+      if (!conflict) await supabaseAdmin.auth.admin.deleteUser(auth_id)
       return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 })
     }
 
-    // STEP 8: Set app_metadata
+    // STEP 4: Set tenant_id and branch_id in app_metadata
     const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(
       auth_id,
       {
         app_metadata: {
           tenant_id: currentUser.tenant_id,
-          role:      role
+          role: role,
+          branch_id: branch_id
         }
       }
     )
 
     if (metadataError) {
-      console.error('[METADATA SYNC FAILED]', metadataError)
-      // Non-fatal, return success anyway but metadata will need repair
+      console.error('[METADATA UPDATE ERROR]', metadataError)
     }
 
-    // STEP 9: Send password reset email
-    await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email
-    })
+    // STEP 5: Fetch Organization Name for Email
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('name')
+      .eq('id', currentUser.tenant_id)
+      .single()
 
-    // STEP 10: Return 201
+    // STEP 6: Send Onboarding Email via Resend
+    const loginUrl = `${new URL(request.url).origin}/login`
+    const emailResult = await sendInviteEmail(
+      email,
+      tenant?.name || 'Mealiez',
+      tempPassword,
+      loginUrl
+    )
+
     return NextResponse.json({
       success: true,
+      email_sent: emailResult.success,
       user: {
-        id:        newUser.id,
-        full_name: newUser.full_name,
-        role:      newUser.role,
-        is_active: newUser.is_active
+        id: newUser.id,
+        email,
+        full_name,
+        role,
+        branch_id: newUser.branch_id
       }
     }, { status: 201 })
 
