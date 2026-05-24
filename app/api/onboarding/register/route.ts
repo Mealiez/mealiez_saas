@@ -28,6 +28,8 @@ async function rollbackOnboarding(
   }
 }
 
+import { sendOtpEmail } from '@/lib/email/otp'
+
 const RegisterSchema = z.object({
   email:     z.string().email(),
   password:  z.string().min(8).max(72),
@@ -53,83 +55,29 @@ export async function POST(request: NextRequest) {
 
     const { email, password, full_name, org_name, logo_url, avatar_url } = result.data
 
-    // STEP 2 — Check email and create auth user
-    const { data: userData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+    // STEP 2 — Check if email already exists in Auth
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+    const found = existingUsers.users.find(u => u.email === email)
+    if (found) {
+      return NextResponse.json({ error: 'Email already in use' }, { status: 409 })
+    }
+
+    // STEP 3 — Send OTP via Resend
+    await sendOtpEmail(email, 'registration', {
       password,
-      email_confirm: true
+      full_name,
+      org_name,
+      logo_url,
+      avatar_url
     })
 
-    if (authError) {
-      if (authError.message.includes('already registered')) {
-        return NextResponse.json({ error: 'Email already in use' }, { status: 409 })
-      }
-      console.error('[AUTH ERROR]', authError)
-      return NextResponse.json({ error: 'Auth failed' }, { status: 500 })
-    }
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Verification code sent to your email.' 
+    }, { status: 200 })
 
-    const auth_id = userData.user.id
-
-    // STEP 3 — Call onboarding function
-    const { data: onboardingResult, error: dbError } = await supabaseAdmin.rpc('onboard_new_tenant', {
-      p_auth_id:   auth_id,
-      p_full_name: full_name,
-      p_org_name:  org_name,
-      p_plan:      'trial',
-      p_logo_url:   logo_url,
-      p_avatar_url: avatar_url
-    })
-
-    if (dbError) {
-      console.error('[DB ERROR]', dbError)
-      await supabaseAdmin.auth.admin.deleteUser(auth_id)
-      return NextResponse.json({ error: 'Tenant setup failed' }, { status: 500 })
-    }
-
-    // STEP 4 — Inject tenant_id into JWT app_metadata
-    const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(auth_id, {
-      app_metadata: {
-        tenant_id: onboardingResult.tenant_id,
-        role:      onboardingResult.role
-      }
-    })
-
-    if (metadataError) {
-      console.error('[METADATA FAILED]', metadataError)
-      await rollbackOnboarding(auth_id, 'app_metadata injection failed')
-      return NextResponse.json(
-        { error: 'Account setup failed. Please try again.' },
-        { status: 500 }
-      )
-    }
-
-    // STEP 4b — Verify metadata was actually written
-    const { data: verifyUser, error: verifyError } = await supabaseAdmin.auth.admin.getUserById(auth_id)
-    
-    const writtenTenantId = verifyUser?.user?.app_metadata?.tenant_id
-
-    if (verifyError || !writtenTenantId) {
-      console.error('[METADATA VERIFY FAILED]', { verifyError, writtenTenantId })
-      await rollbackOnboarding(auth_id, 'app_metadata verification failed')
-      return NextResponse.json(
-        { error: 'Account setup failed. Please try again.' },
-        { status: 500 }
-      )
-    }
-
-    // STEP 6 — Return success
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Account created. Please sign in.',
-        tenant_id: onboardingResult.tenant_id,
-        slug: onboardingResult.slug
-      },
-      { status: 201 }
-    )
-
-  } catch (err) {
-    console.error('[CRITICAL REGISTRATION ERROR]', err)
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 })
+  } catch (err: any) {
+    console.error('[REGISTRATION_REQUEST_ERROR]', err)
+    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
   }
 }

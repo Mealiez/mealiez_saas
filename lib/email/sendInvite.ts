@@ -14,7 +14,7 @@ export async function sendInviteEmail(
   while (retries > 0) {
     try {
       const { data, error } = await resend.emails.send({
-        from: "Mealiez <noreply@notify.mealiez.in>",
+        from: process.env.EMAIL_FROM || "Mealiez <no-reply@notify.mealiez.in>",
         to: userEmail,
         subject: 'Welcome to Mealiez',
         html: template,

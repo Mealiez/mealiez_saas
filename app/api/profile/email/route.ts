@@ -9,6 +9,8 @@ const EmailUpdateSchema = z.object({
   new_email: z.string().email()
 })
 
+import { sendOtpEmail } from '@/lib/email/otp'
+
 export async function POST(request: NextRequest) {
   try {
     const sessionData = await getSession()
@@ -24,22 +26,18 @@ export async function POST(request: NextRequest) {
     }
 
     const { new_email } = result.data
-    const supabase = await createClient()
 
-    // Trigger email change. 
-    // NOTE: This will send a confirmation to the NEW email address.
-    const { error } = await supabase.auth.updateUser({ email: new_email })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    // Send custom OTP via Resend
+    await sendOtpEmail(new_email, 'email_change', {
+      user_id: sessionData.user.id
+    })
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Confirmation code sent to your new email address.' 
+      message: 'Verification code sent to your new email address.' 
     })
-  } catch (err) {
+  } catch (err: any) {
     console.error('[EMAIL_UPDATE_CRASH]', err)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
   }
 }

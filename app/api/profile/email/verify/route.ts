@@ -9,6 +9,9 @@ const VerifyEmailSchema = z.object({
   token: z.string().min(6)
 })
 
+import { verifyCustomOtp } from '@/lib/email/otp'
+import { createAdminClient } from '@/lib/supabase/admin'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -19,17 +22,22 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, token } = result.data
-    const supabase = await createClient()
+    
+    // 1. Verify custom OTP from our table
+    const otpResult = await verifyCustomOtp(email, token, 'email_change')
+    if (!otpResult.success) {
+      return NextResponse.json({ error: otpResult.error }, { status: 400 })
+    }
 
-    // Verify OTP for email change
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email_change'
-    })
+    // 2. Perform the actual email update in Supabase Auth
+    const supabaseAdmin = createAdminClient()
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      otpResult.metadata.user_id,
+      { email: email }
+    )
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, message: 'Email updated successfully' })

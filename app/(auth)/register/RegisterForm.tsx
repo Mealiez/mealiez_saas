@@ -18,6 +18,8 @@ export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]> | null>(null)
+  const [step, setStep] = useState<'details' | 'otp'>('details')
+  const [otp, setOtp] = useState('')
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -66,8 +68,8 @@ export default function RegisterForm() {
         }),
       })
 
-      if (res.status === 201) {
-        router.push('/login?registered=true')
+      if (res.ok) {
+        setStep('otp')
         return
       }
 
@@ -87,8 +89,89 @@ export default function RegisterForm() {
     }
   }
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/onboarding/register/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      })
+
+      if (res.ok) {
+        router.push('/login?registered=true')
+        return
+      }
+
+      const data = await res.json()
+      setError(data.error || 'Verification failed')
+    } catch (err) {
+      setError('Verification failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (step === 'otp') {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+         <div className="mb-6">
+            <div className="h-16 w-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+               <Mail size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Verify Email</h2>
+            <p className="text-sm text-gray-500 mt-2">
+              We've sent a 6-digit code to <strong>{email}</strong>
+            </p>
+         </div>
+
+         {error && (
+            <div className="mb-6 p-4 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl">
+               {error}
+            </div>
+         )}
+
+         <form onSubmit={handleVerifyOtp} className="space-y-6">
+            <div>
+               <input 
+                 type="text" 
+                 required
+                 maxLength={6}
+                 placeholder="000000"
+                 value={otp}
+                 onChange={e => setOtp(e.target.value)}
+                 className="w-full text-center text-3xl font-black tracking-[0.5em] py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+               />
+            </div>
+            <Button 
+               type="submit" 
+               disabled={isLoading}
+               className="w-full bg-indigo-600 hover:bg-indigo-700 h-14 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20"
+            >
+               {isLoading ? <Loader2 className="animate-spin" size={24} /> : 'Verify & Create Account'}
+            </Button>
+            <button 
+              type="button" 
+              onClick={() => setStep('details')}
+              className="text-xs font-bold text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors"
+            >
+               Wrong email? Go back
+            </button>
+         </form>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      {error && (
+        <div className="mb-6 p-4 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl">
+          {error}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Logo Upload Section */}
         <div className="flex flex-col items-center mb-6">
