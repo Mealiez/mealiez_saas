@@ -20,7 +20,6 @@ function hashOTP(otp: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('[AUTH]', 'Using Resend provider')
   const supabaseAdmin = createAdminClient()
   const emailFrom = process.env.EMAIL_FROM || 'no-reply@notify.mealiez.in'
 
@@ -40,7 +39,6 @@ export async function POST(request: NextRequest) {
     const user = userData.users.find(u => u.email === cleanEmail)
 
     if (!user) {
-      console.warn('[OTP REQUEST] User not found:', cleanEmail)
       return NextResponse.json({ success: true, message: 'If an account exists, an OTP has been sent.' })
     }
 

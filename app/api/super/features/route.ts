@@ -63,10 +63,6 @@ export async function PATCH(request: NextRequest) {
 
     if (error) throw error
 
-    console.log(
-      `[SUPER ADMIN] ${superUser.email} toggled ${feature_key}=${is_enabled} for tenant ${tenant_id}`
-    )
-
     return NextResponse.json({
       success: true,
       tenant_id,

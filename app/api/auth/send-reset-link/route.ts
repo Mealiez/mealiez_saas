@@ -10,7 +10,6 @@ import { resend } from '@/lib/email/resend'
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
-  console.log('[AUTH]', 'Using Resend provider')
   const supabaseAdmin = createAdminClient()
   const emailFrom = process.env.EMAIL_FROM || 'no-reply@notify.mealiez.in'
   

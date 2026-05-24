@@ -62,7 +62,6 @@ export default function MyQRPage() {
         }
       } catch (e) {
         // WakeLock not supported
-        console.warn('Wake Lock not supported on this device')
       }
     }
     

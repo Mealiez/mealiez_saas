@@ -21,8 +21,6 @@ export default function ForgotPasswordForm() {
     setMessage(null)
     setMethod(selectedMethod)
 
-    console.log('Calling backend recovery API')
-
     const endpoint = selectedMethod === 'link' 
       ? '/api/auth/send-reset-link' 
       : '/api/auth/send-otp'

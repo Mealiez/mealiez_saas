@@ -115,11 +115,6 @@ export async function PATCH(
       )
     }
 
-    console.log(
-      `[SUPER ADMIN] ${superUser.email} updated tenant ${params.id}:`,
-      parsed.data
-    )
-
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
     console.error('[SUPER ADMIN MESS PATCH ERROR]', error)

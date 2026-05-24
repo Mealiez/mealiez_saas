@@ -34,8 +34,6 @@ Deno.serve(async (req) => {
       }
     )
 
-    console.log('[AUTO-SESSION] Triggering process_attendance_schedules RPC...')
-
     // Call the stored procedure
     const { data, error } = await supabaseAdmin.rpc('process_attendance_schedules')
 

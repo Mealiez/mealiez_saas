@@ -40,10 +40,6 @@ export async function checkFeatureEnabled(
 
   const isEnabled = data === true;
   
-  if (!isEnabled) {
-    console.warn(`[FEATURE GATE] Feature '${featureKey}' is DISABLED for tenant '${tenantId}'`);
-  }
-
   return isEnabled;
 }
 

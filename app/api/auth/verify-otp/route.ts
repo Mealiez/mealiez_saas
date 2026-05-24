@@ -14,7 +14,6 @@ function hashOTP(otp: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('[AUTH]', 'Using Resend-integrated verification flow')
   const supabaseAdmin = createAdminClient()
 
   try {

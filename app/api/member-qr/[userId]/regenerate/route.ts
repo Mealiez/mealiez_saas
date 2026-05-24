@@ -83,8 +83,6 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to regenerate QR code' }, { status: 500 })
   }
 
-  console.log(`[QR REGENERATED] user: ${targetUserId} by ${currentUser.id}`)
-
   return NextResponse.json({
     success: true,
     message: 'QR code regenerated. Previous code is now invalid.',

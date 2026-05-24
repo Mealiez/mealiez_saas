@@ -113,8 +113,6 @@ export async function POST(request: NextRequest) {
       throw error
     }
 
-    console.log('[AUTH]', 'New branch created:', branch.id, 'by', user.id)
-
     return NextResponse.json({ data: branch }, { status: 201 })
   } catch (err: any) {
     console.error('[BRANCHES POST ERROR]', err)

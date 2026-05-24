@@ -95,10 +95,6 @@ export async function PATCH(request: NextRequest) {
       p_tenant_id: tenant_id
     })
 
-    console.log(
-      `[SUPER ADMIN] ${superUser.email} changed tenant ${tenant_id} plan to ${plan}`
-    )
-
     return NextResponse.json({
       success: true,
       tenant_id,

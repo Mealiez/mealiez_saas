@@ -51,8 +51,6 @@ export default function ResetPasswordForm() {
         return
       }
       
-      console.log('Calling backend OTP verification API')
-
       try {
         const response = await fetch('/api/auth/verify-otp', {
           method: 'POST',

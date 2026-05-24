@@ -26,12 +26,10 @@ export async function sendInviteEmail(
         throw new Error(error.message);
       }
       
-      console.log(`[RESEND] Invite email sent to ${userEmail}, id: ${data?.id}`);
       return { success: true };
     } catch (err: any) {
       lastError = err;
       retries--;
-      console.warn(`[RESEND] Failed to send invite, retries left: ${retries}. Error: ${err.message}`);
       if (retries > 0) {
         // Wait 1s before retrying
         await new Promise(resolve => setTimeout(resolve, 1000));
