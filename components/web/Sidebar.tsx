@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   Menu,
   MapPin,
-  Utensils
+  Utensils,
+  Shield
 } from 'lucide-react'
 import SidebarSignOut from './SidebarSignOut'
 import NavLink from './NavLink'
@@ -31,6 +32,11 @@ const navItems = [
     label: 'Users',
     href:  '/users',
     icon:  UsersIcon
+  },
+  {
+    label: 'Permissions',
+    href:  '/permissions',
+    icon:  Shield
   },
   {
     label: 'Branches',
