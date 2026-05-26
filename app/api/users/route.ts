@@ -171,7 +171,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     // STEP 6: Send Onboarding Email via Resend
-    const loginUrl = `${new URL(request.url).origin}/login`
+    const appUrl = process.env.APP_URL || 'http://localhost:3000'
+    const loginUrl = `${appUrl}/login`
     const emailResult = await sendInviteEmail(
       email,
       tenant?.name || 'Mealiez',

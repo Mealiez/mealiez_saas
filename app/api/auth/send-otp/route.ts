@@ -73,17 +73,19 @@ export async function POST(request: NextRequest) {
       to: cleanEmail,
       subject: 'Mealiez Password Recovery',
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; text-align: center;">
-          <h2 style="color: #4f46e5;">Mealiez</h2>
-          <h3>Password Recovery</h3>
-          <p>Use the following code to reset your password:</p>
-          <div style="background: #f3f4f6; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 8px;">
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; text-align: center; background-color: #ffffff; padding: 40px 20px;">
+          <h1 style="color: #f97316; margin: 0 0 30px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.025em;">Mealiez</h1>
+          <h2 style="color: #111827; margin-bottom: 15px;">Password Recovery</h2>
+          <p style="color: #4b5563; font-size: 16px;">Use the following code to reset your password:</p>
+          <div style="background: #fff7ed; padding: 30px; border-radius: 16px; margin: 30px 0; border: 2px dashed #fdba74; letter-spacing: 0.5em; font-size: 36px; font-weight: 900; color: #f97316;">
             ${otp}
           </div>
-          <p style="color: #666;">This code expires in 10 minutes.</p>
-          <p style="font-size: 14px; color: #999; margin-top: 30px;">
+          <p style="color: #6b7280; font-size: 14px;">This code expires in 10 minutes.</p>
+          <p style="font-size: 14px; color: #9ca3af; margin-top: 30px;">
             If you didn't request this, please ignore this email.
           </p>
+          <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 40px 0;" />
+          <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Mealiez Mess Management</p>
         </div>
       `
     })
