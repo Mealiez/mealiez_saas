@@ -23,11 +23,12 @@ export async function POST(request: NextRequest) {
     // STEP 1: Generate recovery link via Supabase Admin
     // This will work even if the user doesn't exist (returns error)
     // but we want to return a generic success regardless.
+    const appUrl = process.env.APP_URL || 'http://localhost:3000'
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email.toLowerCase().trim(),
       options: {
-        redirectTo: `${new URL(request.url).origin}/reset-password`
+        redirectTo: `${appUrl}/reset-password`
       }
     })
 
@@ -46,21 +47,22 @@ export async function POST(request: NextRequest) {
       to: email,
       subject: 'Reset your Mealiez password',
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Password Reset Request</h2>
-          <p>We received a request to reset your password for your Mealiez account.</p>
-          <p>Click the button below to set a new password:</p>
-          <div style="margin: 30px 0;">
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; text-align: center; background-color: #ffffff; padding: 40px 20px;">
+          <h1 style="color: #f97316; margin: 0 0 30px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.025em;">Mealiez</h1>
+          <h2 style="color: #111827; margin-bottom: 15px;">Password Reset Request</h2>
+          <p style="color: #4b5563; font-size: 16px;">We received a request to reset your password for your Mealiez account.</p>
+          <p style="color: #4b5563; font-size: 16px;">Click the button below to set a new password:</p>
+          <div style="margin: 40px 0;">
             <a href="${actionLink}" 
-               style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+               style="background-color: #f97316; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
                Reset Password
             </a>
           </div>
-          <p style="color: #666; font-size: 14px;">
+          <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
             If you didn't request this, you can safely ignore this email. This link will expire shortly.
           </p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
-          <p style="font-size: 12px; color: #999;">© Mealiez Mess Management</p>
+          <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 40px 0;" />
+          <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Mealiez Mess Management</p>
         </div>
       `
     })
