@@ -100,7 +100,7 @@ export const MODULE_CARDS: ModuleCard[] = [
     description: 'Tenant configuration, billing and feature management.',
     href: '/settings',
     icon: '\u2699\uFE0F',
-    requiredFeature: null,
+    requiredFeature: 'settings_module',
     allowedRoles: ['admin'],
     // settings visible to admin only
     manageRoles: ['admin'],

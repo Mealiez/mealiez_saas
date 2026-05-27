@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Clock, Save, Loader2, Info, Globe, Play } from 'lucide-react';
+import { Clock, Save, Loader2, Info, Globe, Play, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MealSettings {
@@ -27,20 +27,39 @@ const TIMEZONES = [
   { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
 ];
 
+const DEFAULT_SETTINGS: MealSettings = {
+  breakfast_start: '07:00',
+  breakfast_end: '09:00',
+  lunch_start: '12:00',
+  lunch_end: '14:00',
+  dinner_start: '19:00',
+  dinner_end: '21:00',
+  timezone: 'Asia/Kolkata',
+};
+
 export default function MealTimeConfig() {
   const [settings, setSettings] = useState<MealSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     async function fetchSettings() {
       try {
         const res = await fetch('/api/settings/meal-times');
-        const data = await res.json();
-        setSettings(data.data);
+        const result = await res.json();
+        
+        if (res.status === 404) {
+          setSettings(DEFAULT_SETTINGS);
+        } else if (res.ok && result.data) {
+          setSettings(result.data);
+        } else {
+          throw new Error(result.error || 'Failed to load');
+        }
       } catch (err) {
         toast.error('Failed to load settings');
+        setSettings(DEFAULT_SETTINGS);
       } finally {
         setIsLoading(false);
       }
@@ -63,6 +82,8 @@ export default function MealTimeConfig() {
       if (!res.ok) throw new Error('Failed to save');
       
       toast.success('Meal settings updated successfully');
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
       toast.error('Could not save settings');
     } finally {
@@ -249,7 +270,13 @@ export default function MealTimeConfig() {
               </p>
             </div>
 
-            <div className="flex justify-end pt-4">
+            <div className="flex items-center justify-end pt-4 gap-4">
+              {showSuccess && (
+                <div className="flex items-center gap-2 text-green-600 animate-in fade-in slide-in-from-right-2 duration-300">
+                  <CheckCircle2 size={16} />
+                  <span className="text-xs font-black uppercase tracking-widest">Configuration Saved</span>
+                </div>
+              )}
               <Button 
                 type="submit" 
                 disabled={isSaving}

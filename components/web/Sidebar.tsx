@@ -26,52 +26,62 @@ const navItems = [
   {
     label: 'Dashboard',
     href:  '/dashboard',
-    icon:  LayoutDashboard
+    icon:  LayoutDashboard,
+    requiredFeature: null
   },
   {
     label: 'Users',
     href:  '/users',
-    icon:  UsersIcon
+    icon:  UsersIcon,
+    requiredFeature: null
   },
   {
     label: 'Permissions',
     href:  '/permissions',
-    icon:  Shield
+    icon:  Shield,
+    requiredFeature: null
   },
   {
     label: 'Branches',
     href:  '/branches',
-    icon:  MapPin
+    icon:  MapPin,
+    requiredFeature: 'branch_management'
   },
   {
     label: 'Meals',
     href:  '/meals',
-    icon:  UtensilsCrossed
+    icon:  UtensilsCrossed,
+    requiredFeature: 'meal_management'
   },
   {
     label: 'Requests',
     href:  '/meal-requests',
-    icon:  Utensils
+    icon:  Utensils,
+    requiredFeature: 'pre_meal_requests'
   },
   {
     label: 'Attendance',
     href:  '/attendance',
-    icon:  CheckCircle2
+    icon:  CheckCircle2,
+    requiredFeature: 'attendance_tracking'
   },
   {
     label: 'Inventory',
     href:  '/inventory',
-    icon:  Package
+    icon:  Package,
+    requiredFeature: 'inventory_management'
   },
   {
     label: 'Reports',
     href:  '/reports',
-    icon:  BarChart3
+    icon:  BarChart3,
+    requiredFeature: 'custom_reports'
   },
   {
     label: 'Settings',
     href:  '/settings',
-    icon:  SettingsIcon
+    icon:  SettingsIcon,
+    requiredFeature: 'settings_module'
   }
 ]
 
@@ -82,23 +92,30 @@ interface SidebarProps {
     avatar_url?: string | null
     tenant_logo?: string | null
   }
+  enabledFeatures?: string[]
 }
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, enabledFeatures = [] }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true)
 
   const filteredItems = navItems.filter(item => {
-    // 1. Members: Only Dashboard, Meals, Attendance, Requests
+    // 1. Feature Flag Check
+    if (item.requiredFeature && !enabledFeatures.includes(item.requiredFeature)) {
+      return false
+    }
+
+    // 2. Role Based Filtering
+    // Members: Only Dashboard, Meals, Attendance, Requests
     if (user.role === 'member') {
       return ['Dashboard', 'Meals', 'Attendance', 'Requests'].includes(item.label)
     }
 
-    // 2. Admins: Everything
+    // Admins: Everything (already filtered by feature flags above)
     if (user.role === 'admin') {
       return true
     }
 
-    // 3. Managers: No Users, Settings, or Branches
+    // Managers: No Users, Settings, or Branches
     if (user.role === 'manager') {
       return !['Users', 'Settings', 'Branches'].includes(item.label)
     }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 
+import { createAdminClient } from '@/lib/supabase/admin'
+
 /**
  * GET /api/settings/meal-times
  * Fetch the meal time configuration for the current tenant.
@@ -15,10 +17,17 @@ export async function GET(request: NextRequest) {
     .from('meal_settings')
     .select('*')
     .eq('tenant_id', user.tenant_id)
-    .single()
+    .maybeSingle()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (!data) {
+    return NextResponse.json({ 
+      data: null, 
+      message: 'No settings found for this tenant.' 
+    }, { status: 404 })
   }
 
   return NextResponse.json({ data })
@@ -43,10 +52,11 @@ export async function PATCH(request: NextRequest) {
 
   // Basic validation could be added here
   
-  const supabase = await createClient()
-  const { data, error } = await supabase
+  const supabaseAdmin = createAdminClient()
+  const { data, error } = await supabaseAdmin
     .from('meal_settings')
-    .update({
+    .upsert({
+      tenant_id:       user.tenant_id,
       breakfast_start: body.breakfast_start,
       breakfast_end:   body.breakfast_end,
       lunch_start:     body.lunch_start,
@@ -54,8 +64,10 @@ export async function PATCH(request: NextRequest) {
       dinner_start:    body.dinner_start,
       dinner_end:      body.dinner_end,
       timezone:        body.timezone,
+      updated_at:      new Date().toISOString()
+    }, {
+      onConflict: 'tenant_id'
     })
-    .eq('tenant_id', user.tenant_id)
     .select()
     .single()
 

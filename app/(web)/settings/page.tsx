@@ -1,11 +1,23 @@
 import { requireAuth } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 import MealTimeConfig from './MealTimeConfig';
+import { checkFeatureEnabled } from '@/lib/features/gate';
 
 export default async function SettingsPage() {
   const user = await requireAuth();
 
-  // ONLY ADMIN can access settings
+  // 1. Feature Flag Check
+  const isSettingsEnabled = await checkFeatureEnabled(user.tenant_id, 'settings_module');
+  if (!isSettingsEnabled) {
+    return (
+      <div className="p-8 text-center">
+        <h1 className="text-2xl font-bold text-red-600 uppercase tracking-tight">Feature Disabled</h1>
+        <p className="text-gray-500 font-medium mt-2">The settings module is not enabled for your mess.</p>
+      </div>
+    );
+  }
+
+  // 2. Role Check: ONLY ADMIN can access settings
   if (user.role !== 'admin') {
     return (
       <div className="p-8 text-center">
