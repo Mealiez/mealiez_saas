@@ -94,3 +94,51 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const supabaseAdmin = createAdminClient()
+  try {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    
+    // Only admins can update profile fields like branch/designation
+    if (!isAdminOrAbove(currentUser.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { branch_id, designation_id, enrollment_no } = body
+
+    const updateData: Record<string, any> = {}
+    if (branch_id !== undefined) updateData.branch_id = branch_id
+    if (designation_id !== undefined) updateData.designation_id = designation_id
+    if (enrollment_no !== undefined) updateData.enrollment_no = enrollment_no
+
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .update(updateData)
+      .eq('id', params.id)
+      .eq('tenant_id', currentUser.tenant_id) // Security: ensure same tenant
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Update app_metadata if branch_id changed for token consistency
+    if (branch_id !== undefined) {
+      await supabaseAdmin.auth.admin.updateUserById(data.auth_id, {
+        app_metadata: { branch_id }
+      })
+    }
+
+    return NextResponse.json({ success: true, data })
+  } catch (err) {
+    console.error('[PATCH USER CRITICAL ERROR]', err)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}

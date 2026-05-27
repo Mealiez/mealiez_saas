@@ -39,7 +39,7 @@ export default function MyProfilePage() {
 
       const { data: profile } = await supabase
         .from('users')
-        .select('*, tenants(name)')
+        .select('*, tenants(name), designation:designations(name), branch:branches(name)')
         .eq('auth_id', authUser.id)
         .single();
 
@@ -267,6 +267,30 @@ export default function MyProfilePage() {
                           onChange={e => setPersonalInfo({...personalInfo, phone: e.target.value})}
                           placeholder="e.g. +91 98765 43210"
                           className="rounded-xl border-gray-100 bg-gray-50/50 font-bold h-11 focus:bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Current Branch</Label>
+                        <Input 
+                          value={user.branch?.name || 'Unassigned'} 
+                          readOnly
+                          className="rounded-xl border-gray-100 bg-gray-100 font-bold h-11 cursor-not-allowed opacity-75"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Designation</Label>
+                        <Input 
+                          value={user.designation?.name || 'Not Set'} 
+                          readOnly
+                          className="rounded-xl border-gray-100 bg-gray-100 font-bold h-11 cursor-not-allowed opacity-75"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Enrollment No.</Label>
+                        <Input 
+                          value={user.enrollment_no || 'N/A'} 
+                          readOnly
+                          className="rounded-xl border-gray-100 bg-gray-100 font-bold h-11 cursor-not-allowed opacity-75"
                         />
                       </div>
                    </div>
