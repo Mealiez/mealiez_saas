@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { type UserRole, isAdminOrAbove, type AuthUser } from '@/lib/auth/roles'
 import RoleUpdateDropdown from './RoleUpdateDropdown'
-import { MoreVertical, User, Trash2, Eye, ShieldAlert, Filter } from 'lucide-react'
+import { MoreVertical, User, Trash2, Eye, ShieldAlert, Filter, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ import {
 type UserRow = {
   id: string
   full_name: string
+  enrollment_no: string | null
   phone: string | null
   role: UserRole
   is_active: boolean
@@ -49,8 +50,21 @@ export default function UsersTable({ initialUsers, currentUser, designations }: 
   const [users, setUsers] = useState<UserRow[]>(initialUsers)
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<string | null>(null)
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
 
   const currentDesignationFilter = searchParams.get('designation') || ''
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const params = new URLSearchParams(searchParams.toString())
+    if (searchInput.trim()) {
+      params.set('search', searchInput.trim())
+    } else {
+      params.delete('search')
+    }
+    // Reset to page 1 if you have pagination, otherwise just push
+    router.push(`/users?${params.toString()}`)
+  }
 
   const handleDesignationFilter = (id: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -119,21 +133,34 @@ export default function UsersTable({ initialUsers, currentUser, designations }: 
   return (
     <>
       {/* Table Filters */}
-      <div className="p-4 border-b border-gray-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Filter size={16} className="text-gray-400" />
-          <span className="text-xs font-black uppercase text-gray-400 tracking-widest">Filter By Designation:</span>
+      <div className="p-4 border-b border-gray-200 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <form onSubmit={handleSearch} className="flex-1 max-w-md relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <input
+            type="text"
+            placeholder="Search by name or enrollment no..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+          />
+        </form>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="text-gray-400" />
+            <span className="text-xs font-black uppercase text-gray-400 tracking-widest whitespace-nowrap">Filter By Designation:</span>
+          </div>
+          <select
+            value={currentDesignationFilter}
+            onChange={(e) => handleDesignationFilter(e.target.value)}
+            className="h-10 px-4 rounded-xl border border-gray-200 text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none bg-gray-50/50 min-w-[200px]"
+          >
+            <option value="">All Designations</option>
+            {designations.map(d => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
         </div>
-        <select
-          value={currentDesignationFilter}
-          onChange={(e) => handleDesignationFilter(e.target.value)}
-          className="h-10 px-4 rounded-xl border border-gray-200 text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none bg-gray-50/50 min-w-[200px]"
-        >
-          <option value="">All Designations</option>
-          {designations.map(d => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </select>
       </div>
 
       <div className="overflow-x-auto">
@@ -141,6 +168,7 @@ export default function UsersTable({ initialUsers, currentUser, designations }: 
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Enrollment</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Designation</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -173,6 +201,11 @@ export default function UsersTable({ initialUsers, currentUser, designations }: 
                       <div className="text-xs text-gray-500">{user.phone || 'No phone'}</div>
                     </div>
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="text-sm font-black text-blue-600 uppercase tracking-tighter">
+                    {user.enrollment_no || 'N/A'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {isAdminOrAbove(currentUser.role) && user.id !== currentUser.id && user.role !== 'admin' ? (

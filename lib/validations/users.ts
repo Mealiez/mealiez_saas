@@ -14,6 +14,10 @@ export const InviteUserSchema = z.object({
     .min(2, 'Name must be at least 2 chars')
     .max(100)
     .trim(),
+  enrollment_no: z.string()
+    .max(50)
+    .optional()
+    .nullable(),
   phone: z.string()
     .max(20)
     .optional()

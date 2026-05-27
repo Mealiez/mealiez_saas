@@ -41,6 +41,7 @@ export default function InviteUserModal({
   const [form, setForm] = useState({
     email: '',
     full_name: '',
+    enrollment_no: '',
     phone: '',
     role: assignableRoles[0] || 'member' as UserRole,
     branch_id: initialBranches[0]?.id || '',
@@ -115,6 +116,7 @@ export default function InviteUserModal({
         setForm({ 
           email: '', 
           full_name: '', 
+          enrollment_no: '',
           phone: '', 
           role: assignableRoles[0] || 'member',
           branch_id: initialBranches[0]?.id || '',
@@ -224,6 +226,18 @@ export default function InviteUserModal({
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
                 />
                 {fieldErrors?.full_name && <p className="mt-1.5 text-[10px] font-bold text-red-500 ml-1">{fieldErrors.full_name[0]}</p>}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Enrollment No.</label>
+                <input
+                  type="text"
+                  placeholder="e.g. EMP123"
+                  value={form.enrollment_no}
+                  onChange={e => setForm({ ...form, enrollment_no: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                />
+                {fieldErrors?.enrollment_no && <p className="mt-1.5 text-[10px] font-bold text-red-500 ml-1">{fieldErrors.enrollment_no[0]}</p>}
               </div>
 
               <div>

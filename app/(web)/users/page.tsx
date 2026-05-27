@@ -8,7 +8,7 @@ import InviteUserModal from './InviteUserModal'
 export default async function UsersPage({
   searchParams
 }: {
-  searchParams: { designation?: string }
+  searchParams: { designation?: string; search?: string }
 }) {
   const currentUser = await requireAuth()
 
@@ -38,6 +38,7 @@ export default async function UsersPage({
     .select(`
       id, 
       full_name, 
+      enrollment_no,
       phone, 
       role, 
       is_active, 
@@ -50,6 +51,11 @@ export default async function UsersPage({
 
   if (searchParams.designation) {
     query = query.eq('designation_id', searchParams.designation)
+  }
+
+  if (searchParams.search) {
+    const searchTerm = `%${searchParams.search}%`
+    query = query.or(`full_name.ilike.${searchTerm},enrollment_no.ilike.${searchTerm}`)
   }
 
   const { data: users } = await query.limit(50)
