@@ -310,7 +310,7 @@ export default function InviteUserModal({
                   disabled={isLoading || isUploading}
                   className="px-8 py-3 text-xs font-black uppercase tracking-widest text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
                 >
-                  {isLoading ? 'Inviting...' : 'Send Invitation'}
+                  {isLoading ? 'Inviting...' : isUploading ? 'Uploading...' : 'Send Invitation'}
                 </button>
               </div>
             </form>
