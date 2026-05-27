@@ -47,6 +47,7 @@ export default async function UsersPage({
       designation_id,
       designation:designations(name)
     `)
+    .eq('tenant_id', currentUser.tenant_id) // SECURITY: Must be same tenant
     .order('created_at', { ascending: false })
 
   if (searchParams.designation) {
@@ -54,8 +55,9 @@ export default async function UsersPage({
   }
 
   if (searchParams.search) {
-    const searchTerm = `%${searchParams.search}%`
-    query = query.or(`full_name.ilike.${searchTerm},enrollment_no.ilike.${searchTerm}`)
+    const term = `%${searchParams.search}%`
+    // Use .or() with a filter string for name and enrollment
+    query = query.or(`full_name.ilike.${term},enrollment_no.ilike.${term}`)
   }
 
   const { data: users } = await query.limit(50)

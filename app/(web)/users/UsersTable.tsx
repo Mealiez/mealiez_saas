@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { type UserRole, isAdminOrAbove, type AuthUser } from '@/lib/auth/roles'
@@ -52,6 +52,16 @@ export default function UsersTable({ initialUsers, currentUser, designations }: 
   const [userToDelete, setUserToDelete] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
 
+  // SYNC: Update internal state when server-side props change (e.g. after search/filter)
+  useEffect(() => {
+    setUsers(initialUsers)
+  }, [initialUsers])
+
+  // SYNC: Update search input when URL changes (e.g. back button)
+  useEffect(() => {
+    setSearchInput(searchParams.get('search') || '')
+  }, [searchParams])
+
   const currentDesignationFilter = searchParams.get('designation') || ''
 
   const handleSearch = (e: React.FormEvent) => {
@@ -62,7 +72,6 @@ export default function UsersTable({ initialUsers, currentUser, designations }: 
     } else {
       params.delete('search')
     }
-    // Reset to page 1 if you have pagination, otherwise just push
     router.push(`/users?${params.toString()}`)
   }
 
