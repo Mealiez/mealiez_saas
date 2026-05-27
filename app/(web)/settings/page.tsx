@@ -1,6 +1,7 @@
 import { requireAuth } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 import MealTimeConfig from './MealTimeConfig';
+import DesignationSettings from './DesignationSettings';
 import { checkFeatureEnabled } from '@/lib/features/gate';
 
 export default async function SettingsPage() {
@@ -37,6 +38,10 @@ export default async function SettingsPage() {
       <div className="space-y-12">
         <section>
            <MealTimeConfig />
+        </section>
+
+        <section>
+           <DesignationSettings />
         </section>
         
         {/* Placeholder for future settings sections */}

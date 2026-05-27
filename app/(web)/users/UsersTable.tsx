@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { type UserRole, isAdminOrAbove, type AuthUser } from '@/lib/auth/roles'
 import RoleUpdateDropdown from './RoleUpdateDropdown'
-import { MoreVertical, User, Trash2, Eye, ShieldAlert } from 'lucide-react'
+import { MoreVertical, User, Trash2, Eye, ShieldAlert, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -33,17 +34,33 @@ type UserRow = {
   is_active: boolean
   created_at: string
   avatar_url?: string | null
+  designation?: { name: string } | null
 }
 
 interface UsersTableProps {
   initialUsers: UserRow[]
   currentUser: AuthUser
+  designations: { id: string, name: string }[]
 }
 
-export default function UsersTable({ initialUsers, currentUser }: UsersTableProps) {
+export default function UsersTable({ initialUsers, currentUser, designations }: UsersTableProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [users, setUsers] = useState<UserRow[]>(initialUsers)
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<string | null>(null)
+
+  const currentDesignationFilter = searchParams.get('designation') || ''
+
+  const handleDesignationFilter = (id: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (id) {
+      params.set('designation', id)
+    } else {
+      params.delete('designation')
+    }
+    router.push(`/users?${params.toString()}`)
+  }
 
   const toggleStatus = async (userId: string, currentStatus: boolean) => {
     setIsLoading(userId)
@@ -101,12 +118,31 @@ export default function UsersTable({ initialUsers, currentUser }: UsersTableProp
 
   return (
     <>
+      {/* Table Filters */}
+      <div className="p-4 border-b border-gray-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Filter size={16} className="text-gray-400" />
+          <span className="text-xs font-black uppercase text-gray-400 tracking-widest">Filter By Designation:</span>
+        </div>
+        <select
+          value={currentDesignationFilter}
+          onChange={(e) => handleDesignationFilter(e.target.value)}
+          className="h-10 px-4 rounded-xl border border-gray-200 text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none bg-gray-50/50 min-w-[200px]"
+        >
+          <option value="">All Designations</option>
+          {designations.map(d => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
+              <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Designation</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Joined</th>
               <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
@@ -149,6 +185,11 @@ export default function UsersTable({ initialUsers, currentUser }: UsersTableProp
                   ) : (
                     <span className="text-sm text-gray-700 capitalize font-medium">{user.role}</span>
                   )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="text-sm font-bold text-gray-700">
+                    {user.designation?.name || '-'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-full ${

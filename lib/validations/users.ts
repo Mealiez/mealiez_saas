@@ -22,6 +22,7 @@ export const InviteUserSchema = z.object({
     error: 'Role must be manager or member'
   }),
   branch_id: z.string().uuid('Invalid branch').optional().nullable(),
+  designation_id: z.string().uuid('Invalid designation').optional().nullable(),
   avatar_url: z.string().url().optional().nullable()
 })
 

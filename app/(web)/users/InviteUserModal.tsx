@@ -12,6 +12,11 @@ interface Branch {
   name: string
 }
 
+interface Designation {
+  id: string
+  name: string
+}
+
 interface InviteUserModalProps {
   currentUserRole: UserRole
 }
@@ -22,6 +27,7 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
+  const [designations, setDesignations] = useState<Designation[]>([])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]> | null>(null)
@@ -34,6 +40,7 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
     phone: '',
     role: assignableRoles[0] || 'member' as UserRole,
     branch_id: '',
+    designation_id: '',
     avatar_url: ''
   })
 
@@ -65,20 +72,31 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
     }
   }
 
-  // Fetch branches
+  // Fetch branches and designations
   useEffect(() => {
     if (isOpen) {
+      // Branches
       fetch('/api/branches')
         .then(res => res.json())
         .then(data => {
           if (data.data) {
             setBranches(data.data)
-            if (data.data.length > 0) {
+            if (data.data.length > 0 && !form.branch_id) {
               setForm(prev => ({ ...prev, branch_id: data.data[0].id }))
             }
           }
         })
         .catch(err => console.error('Failed to fetch branches', err))
+
+      // Designations
+      fetch('/api/settings/designations')
+        .then(res => res.json())
+        .then(data => {
+          if (data.data) {
+            setDesignations(data.data)
+          }
+        })
+        .catch(err => console.error('Failed to fetch designations', err))
     }
   }, [isOpen])
 
@@ -100,7 +118,11 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          designation_id: form.designation_id || null,
+          branch_id: form.branch_id || null
+        })
       })
 
       const data = await res.json()
@@ -113,6 +135,7 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
           phone: '', 
           role: assignableRoles[0] || 'member',
           branch_id: branches[0]?.id || '',
+          designation_id: '',
           avatar_url: ''
         })
         setTimeout(() => {
@@ -263,6 +286,22 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
                   </div>
                 )}
               </div>
+
+              {designations.length > 0 && (
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Designation</label>
+                  <select
+                    value={form.designation_id}
+                    onChange={e => setForm({ ...form, designation_id: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                  >
+                    <option value="">Select Designation</option>
+                    {designations.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="pt-4 flex justify-end space-x-3">
                 <button
