@@ -19,13 +19,20 @@ export default async function UsersPage({
 
   const supabase = await createClient()
 
-  // 1. Fetch designations for the filter dropdown
+  // 1. Fetch designations for the filter dropdown and modal
   const { data: designations } = await supabase
     .from('designations')
     .select('id, name')
     .order('name')
 
-  // 2. Build user query with join
+  // 2. Fetch branches for the invite modal
+  const { data: branches } = await supabase
+    .from('branches')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name')
+
+  // 3. Build user query with join
   let query = supabase
     .from('users')
     .select(`
@@ -58,7 +65,11 @@ export default async function UsersPage({
           </div>
           <div className="flex items-center gap-3">
             {isAdminOrAbove(currentUser.role) && (
-              <InviteUserModal currentUserRole={currentUser.role} />
+              <InviteUserModal 
+                currentUserRole={currentUser.role} 
+                initialBranches={(branches as any[]) ?? []}
+                initialDesignations={(designations as any[]) ?? []}
+              />
             )}
           </div>
         </header>
