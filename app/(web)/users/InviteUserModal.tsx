@@ -12,16 +12,26 @@ interface Branch {
   name: string
 }
 
-interface InviteUserModalProps {
-  currentUserRole: UserRole
+interface Designation {
+  id: string
+  name: string
 }
 
-export default function InviteUserModal({ currentUserRole }: InviteUserModalProps) {
+interface InviteUserModalProps {
+  currentUserRole: UserRole
+  initialBranches: Branch[]
+  initialDesignations: Designation[]
+}
+
+export default function InviteUserModal({ 
+  currentUserRole, 
+  initialBranches, 
+  initialDesignations 
+}: InviteUserModalProps) {
   const supabase = createClient()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [branches, setBranches] = useState<Branch[]>([])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]> | null>(null)
@@ -31,11 +41,20 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
   const [form, setForm] = useState({
     email: '',
     full_name: '',
+    enrollment_no: '',
     phone: '',
     role: assignableRoles[0] || 'member' as UserRole,
-    branch_id: '',
+    branch_id: initialBranches[0]?.id || '',
+    designation_id: '',
     avatar_url: ''
   })
+
+  // Synchronize initial state if branches change or modal opens
+  useEffect(() => {
+    if (initialBranches.length > 0 && !form.branch_id) {
+      setForm(prev => ({ ...prev, branch_id: initialBranches[0].id }))
+    }
+  }, [initialBranches])
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -65,23 +84,6 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
     }
   }
 
-  // Fetch branches
-  useEffect(() => {
-    if (isOpen) {
-      fetch('/api/branches')
-        .then(res => res.json())
-        .then(data => {
-          if (data.data) {
-            setBranches(data.data)
-            if (data.data.length > 0) {
-              setForm(prev => ({ ...prev, branch_id: data.data[0].id }))
-            }
-          }
-        })
-        .catch(err => console.error('Failed to fetch branches', err))
-    }
-  }, [isOpen])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -100,7 +102,11 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          designation_id: form.designation_id || null,
+          branch_id: form.branch_id || null
+        })
       })
 
       const data = await res.json()
@@ -110,9 +116,11 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
         setForm({ 
           email: '', 
           full_name: '', 
+          enrollment_no: '',
           phone: '', 
           role: assignableRoles[0] || 'member',
-          branch_id: branches[0]?.id || '',
+          branch_id: initialBranches[0]?.id || '',
+          designation_id: '',
           avatar_url: ''
         })
         setTimeout(() => {
@@ -147,7 +155,7 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200 relative">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200 relative text-left">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Invite Member</h2>
@@ -221,6 +229,18 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
               </div>
 
               <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Enrollment No.</label>
+                <input
+                  type="text"
+                  placeholder="e.g. EMP123"
+                  value={form.enrollment_no}
+                  onChange={e => setForm({ ...form, enrollment_no: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                />
+                {fieldErrors?.enrollment_no && <p className="mt-1.5 text-[10px] font-bold text-red-500 ml-1">{fieldErrors.enrollment_no[0]}</p>}
+              </div>
+
+              <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Email Address</label>
                 <input
                   type="email"
@@ -247,21 +267,34 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
                   </select>
                 </div>
 
-                {branches.length > 0 && (
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Branch</label>
-                    <select
-                      required
-                      value={form.branch_id}
-                      onChange={e => setForm({ ...form, branch_id: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
-                    >
-                      {branches.map(branch => (
-                        <option key={branch.id} value={branch.id}>{branch.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Branch</label>
+                  <select
+                    required
+                    value={form.branch_id}
+                    onChange={e => setForm({ ...form, branch_id: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                  >
+                    <option value="">Select Branch</option>
+                    {initialBranches.map(branch => (
+                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Designation</label>
+                <select
+                  value={form.designation_id}
+                  onChange={e => setForm({ ...form, designation_id: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                >
+                  <option value="">Select Designation</option>
+                  {initialDesignations.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="pt-4 flex justify-end space-x-3">
@@ -277,7 +310,7 @@ export default function InviteUserModal({ currentUserRole }: InviteUserModalProp
                   disabled={isLoading || isUploading}
                   className="px-8 py-3 text-xs font-black uppercase tracking-widest text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
                 >
-                  {isLoading ? 'Inviting...' : 'Send Invitation'}
+                  {isLoading ? 'Inviting...' : isUploading ? 'Uploading...' : 'Send Invitation'}
                 </button>
               </div>
             </form>

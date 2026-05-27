@@ -19,7 +19,8 @@ const FEATURE_KEYS = [
   'pre_meal_requests',
   'custom_reports',
   'billing',
-  'branch_management'
+  'branch_management',
+  'settings_module'
 ]
 
 export async function PATCH(request: NextRequest) {

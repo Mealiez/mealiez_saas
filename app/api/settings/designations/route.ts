@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
-
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
- * GET /api/settings/meal-times
- * Fetch the meal time configuration for the current tenant.
+ * GET /api/settings/designations
+ * Fetch all designations for the current tenant.
  */
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser()
@@ -14,30 +13,22 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('meal_settings')
+    .from('designations')
     .select('*')
-    .eq('tenant_id', user.tenant_id)
-    .maybeSingle()
+    .order('name', { ascending: true })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  if (!data) {
-    return NextResponse.json({ 
-      data: null, 
-      message: 'No settings found for this tenant.' 
-    }, { status: 404 })
   }
 
   return NextResponse.json({ data })
 }
 
 /**
- * PATCH /api/settings/meal-times
- * Update the meal time configuration (Admin only).
+ * POST /api/settings/designations
+ * Create a new designation (Admin only).
  */
-export async function PATCH(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const user = await getCurrentUser()
   if (!user || user.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -50,23 +41,16 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
-  // Basic validation could be added here
+  if (!body.name || typeof body.name !== 'string') {
+    return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+  }
   
-  const supabaseAdmin = createAdminClient()
-  const { data, error } = await supabaseAdmin
-    .from('meal_settings')
-    .upsert({
-      tenant_id:       user.tenant_id,
-      breakfast_start: body.breakfast_start,
-      breakfast_end:   body.breakfast_end,
-      lunch_start:     body.lunch_start,
-      lunch_end:       body.lunch_end,
-      dinner_start:    body.dinner_start,
-      dinner_end:      body.dinner_end,
-      timezone:        body.timezone,
-      updated_at:      new Date().toISOString()
-    }, {
-      onConflict: 'tenant_id'
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('designations')
+    .insert({
+      tenant_id: user.tenant_id,
+      name:      body.name.trim(),
     })
     .select()
     .single()

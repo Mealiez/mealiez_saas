@@ -5,7 +5,11 @@ import { isAdminOrAbove } from '@/lib/auth/roles'
 import UsersTable from './UsersTable'
 import InviteUserModal from './InviteUserModal'
 
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams
+}: {
+  searchParams: { designation?: string; search?: string }
+}) {
   const currentUser = await requireAuth()
 
   // ROLE-BASED AUTH: Only admin can access user management
@@ -14,19 +18,49 @@ export default async function UsersPage() {
   }
 
   const supabase = await createClient()
-  const { data: users } = await supabase
+
+  // 1. Fetch designations for the filter dropdown and modal
+  const { data: designations } = await supabase
+    .from('designations')
+    .select('id, name')
+    .order('name')
+
+  // 2. Fetch branches for the invite modal
+  const { data: branches } = await supabase
+    .from('branches')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name')
+
+  // 3. Build user query with join
+  let query = supabase
     .from('users')
     .select(`
       id, 
       full_name, 
+      enrollment_no,
       phone, 
       role, 
       is_active, 
       created_at,
-      avatar_url
+      avatar_url,
+      designation_id,
+      designation:designations(name)
     `)
+    .eq('tenant_id', currentUser.tenant_id) // SECURITY: Must be same tenant
     .order('created_at', { ascending: false })
-    .limit(20)
+
+  if (searchParams.designation) {
+    query = query.eq('designation_id', searchParams.designation)
+  }
+
+  if (searchParams.search) {
+    const term = `%${searchParams.search}%`
+    // Use .or() with a filter string for name and enrollment
+    query = query.or(`full_name.ilike.${term},enrollment_no.ilike.${term}`)
+  }
+
+  const { data: users } = await query.limit(50)
 
   return (
     <div className="p-8">
@@ -37,11 +71,15 @@ export default async function UsersPage() {
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Team Members</h1>
             <p className="text-sm text-gray-500 mt-1">Manage your team's access and roles.</p>
           </div>
-          {isAdminOrAbove(currentUser.role) && (
-            <div className="flex-shrink-0">
-              <InviteUserModal currentUserRole={currentUser.role} />
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {isAdminOrAbove(currentUser.role) && (
+              <InviteUserModal 
+                currentUserRole={currentUser.role} 
+                initialBranches={(branches as any[]) ?? []}
+                initialDesignations={(designations as any[]) ?? []}
+              />
+            )}
+          </div>
         </header>
         
         {/* Users Table Card */}
@@ -49,6 +87,7 @@ export default async function UsersPage() {
           <UsersTable
             initialUsers={(users as any[]) ?? []}
             currentUser={currentUser}
+            designations={(designations as any[]) ?? []}
           />
         </div>
       </div>

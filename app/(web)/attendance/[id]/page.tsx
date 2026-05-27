@@ -7,6 +7,7 @@ import QRDisplay from './QRDisplay';
 import AttendanceLog from './AttendanceLog';
 import MyQRModal from '@/components/web/MyQRModal';
 import MemberScannerModal from '@/components/web/MemberScannerModal';
+import CloseSessionButton from './CloseSessionButton';
 
 /*
  * SERVER COMPONENT: Attendance Session Details
@@ -81,6 +82,12 @@ export default async function SessionPage({ params }: { params: { id: string } }
             )}
           </div>
         </div>
+
+        {canManage && session.is_active && (
+          <div className="flex items-center gap-3">
+            <CloseSessionButton sessionId={session.id} />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -146,4 +153,3 @@ export default async function SessionPage({ params }: { params: { id: string } }
     </div>
   );
 }
-

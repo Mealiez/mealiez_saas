@@ -14,6 +14,7 @@ interface LogEntry {
   attendance_source: string;
   user: {
     full_name: string;
+    designation: { name: string } | null;
   };
   branch: {
     name: string;
@@ -35,7 +36,6 @@ export default function AttendanceLogsContent({ initialLogs, branches }: Attenda
 
   const applyFilters = async () => {
     // In a real app, we'd fetch from API here.
-    // For now, let's simulate or provide a refresh button.
     const query = new URLSearchParams(filters).toString();
     window.location.search = query;
   };
@@ -96,6 +96,7 @@ export default function AttendanceLogsContent({ initialLogs, branches }: Attenda
               <tr>
                 <th className="px-6 py-4">Time</th>
                 <th className="px-6 py-4">User</th>
+                <th className="px-6 py-4">Designation</th>
                 <th className="px-6 py-4">Meal</th>
                 <th className="px-6 py-4">Branch</th>
                 <th className="px-6 py-4">Source</th>
@@ -111,6 +112,11 @@ export default function AttendanceLogsContent({ initialLogs, branches }: Attenda
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{log.user.full_name}</span>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                      {log.user.designation?.name || '-'}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant="outline" className="capitalize border-blue-100 text-blue-700 bg-blue-50/30">
@@ -134,7 +140,7 @@ export default function AttendanceLogsContent({ initialLogs, branches }: Attenda
               ))}
               {logs.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic font-medium">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic font-medium">
                     No check-in records found for selected filters.
                   </td>
                 </tr>

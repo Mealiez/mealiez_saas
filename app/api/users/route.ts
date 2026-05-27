@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, full_name, role, phone, branch_id, avatar_url } = result.data
+    const { email, full_name, enrollment_no, role, phone, branch_id, designation_id, avatar_url } = result.data
 
     // STEP 0: Deliverability Check (Prevent Bounces)
     const isDeliverable = await validateEmailDeliverability(email)
@@ -128,9 +128,11 @@ export async function POST(request: NextRequest) {
         auth_id,
         tenant_id: currentUser.tenant_id,
         full_name,
+        enrollment_no,
         role,
         phone,
         branch_id,
+        designation_id,
         is_active: true,
         must_change_password: true, // Forced change on login
         avatar_url

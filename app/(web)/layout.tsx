@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/auth/session'
 import Sidebar from '@/components/web/Sidebar'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function WebLayout({
   children
@@ -8,10 +9,24 @@ export default async function WebLayout({
 }) {
   const user = await requireAuth()
 
+  // Fetch tenant feature flags
+  const supabase = await createClient()
+  const { data: features } = await supabase
+    .from('tenant_features')
+    .select('feature_key, is_enabled')
+    .eq('tenant_id', user.tenant_id)
+
+  const enabledFeatures = (features ?? [])
+    .filter(f => f.is_enabled)
+    .map(f => f.feature_key)
+
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden">
       {/* SIDEBAR (Client Component) */}
-      <Sidebar user={{ full_name: user.full_name, role: user.role }} />
+      <Sidebar 
+        user={{ full_name: user.full_name, role: user.role }} 
+        enabledFeatures={enabledFeatures}
+      />
 
       {/* MAIN CONTENT WRAPPER */}
       <div className="flex-1 flex flex-col h-full relative overflow-hidden">

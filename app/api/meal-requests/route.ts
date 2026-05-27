@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
         tenant_id,
         users:user_id (
           full_name,
-          branch_id
+          branch_id,
+          designation:designations(name)
         )
       `)
       .eq('tenant_id', user.tenant_id)

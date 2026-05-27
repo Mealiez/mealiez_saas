@@ -16,7 +16,8 @@ interface MealRequestLog {
   requested_at: string;
   users: {
     full_name: string;
-    branches: { name: string } | null;
+    branch_id: string | null;
+    designation: { name: string } | null;
   };
 }
 
@@ -99,7 +100,7 @@ export default function DetailedLog() {
               <thead className="bg-gray-50/50 text-gray-400 font-bold uppercase tracking-widest text-[10px]">
                 <tr>
                   <th className="px-8 py-5">Member</th>
-                  <th className="px-8 py-5">Branch</th>
+                  <th className="px-8 py-5">Designation</th>
                   <th className="px-8 py-5">Meal Slot</th>
                   <th className="px-8 py-5 text-center">Status</th>
                   <th className="px-8 py-5 text-right">Booked At</th>
@@ -126,10 +127,9 @@ export default function DetailedLog() {
                       </div>
                     </td>
                     <td className="px-8 py-5">
-                       <div className="flex items-center gap-1.5 text-gray-600">
-                          <MapPin size={12} className="text-gray-300" />
-                          {log.users.branches?.name || 'Global'}
-                       </div>
+                       <span className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                         {log.users.designation?.name || '-'}
+                       </span>
                     </td>
                     <td className="px-8 py-5">
                        <Badge variant="outline" className="capitalize border-blue-50 text-blue-700 bg-blue-50/30 font-bold px-3">
