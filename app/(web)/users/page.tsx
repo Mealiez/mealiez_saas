@@ -68,7 +68,7 @@ export default async function UsersPage({
         {/* Page Header */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Team Members</h1>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Team Members</h1>
             <p className="text-sm text-gray-500 mt-1">Manage your team's access and roles.</p>
           </div>
           <div className="flex items-center gap-3">
