@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation';
 import MealTimeSettings from './MealTimeSettings';
 import TimezoneSettings from './TimezoneSettings';
 import DesignationSettings from './DesignationSettings';
+import UserPasswordSettings from './UserPasswordSettings';
 import { checkFeatureEnabled } from '@/lib/features/gate';
+import { isAdminOrAbove } from '@/lib/auth/roles';
 
 export default async function SettingsPage({
   searchParams
@@ -28,6 +30,11 @@ export default async function SettingsPage({
 
   const section = searchParams.section || 'timezone';
 
+  // 2. Role Check for Sensitive Sections
+  if (section === 'passwords' && !isAdminOrAbove(user.role)) {
+    redirect('/settings?section=timezone');
+  }
+
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans">
       <header>
@@ -39,11 +46,13 @@ export default async function SettingsPage({
           {section === 'timezone' && 'Clock Sync'}
           {section === 'meal-time' && 'Session Timings'}
           {section === 'designations' && 'Team Roles'}
+          {section === 'passwords' && 'User Passwords'}
         </h1>
         <p className="text-gray-500 font-medium mt-2">
           {section === 'timezone' && 'Ensure all bookings and automation use your local time.'}
           {section === 'meal-time' && 'Configure the active windows for meal check-ins.'}
           {section === 'designations' && 'Manage job titles and official roles for your staff.'}
+          {section === 'passwords' && 'Export and manage temporary passwords for mobile-invited users.'}
         </p>
       </header>
 
@@ -63,6 +72,12 @@ export default async function SettingsPage({
         {section === 'designations' && (
           <section>
              <DesignationSettings />
+          </section>
+        )}
+
+        {section === 'passwords' && isAdminOrAbove(user.role) && (
+          <section>
+             <UserPasswordSettings />
           </section>
         )}
       </div>

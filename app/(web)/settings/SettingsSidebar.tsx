@@ -10,7 +10,8 @@ import {
   ChevronLeft, 
   ChevronRight,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  KeyRound
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +30,11 @@ const SETTINGS_SECTIONS = [
     id: 'designations',
     label: 'Designations',
     icon: Briefcase,
+  },
+  {
+    id: 'passwords',
+    label: 'User Passwords',
+    icon: KeyRound,
   },
 ];
 

@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { Mail, Phone as PhoneIcon, Loader2 } from 'lucide-react'
 
 export default function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,14 +24,19 @@ export default function LoginForm() {
 
     const supabase = createClient()
 
+    // Map phone to synthetic email if needed
+    const authIdentifier = loginMethod === 'email'
+      ? identifier
+      : `${identifier.replace(/[^\d+]/g, '')}@mobile.mealiez.in`
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: authIdentifier,
       password,
     })
 
     if (error) {
       if (error.message.includes('Invalid login')) {
-        setError('Incorrect email or password.')
+        setError(`Incorrect ${loginMethod === 'email' ? 'email' : 'mobile'} or password.`)
       } else if (error.message.includes('Email not confirmed')) {
         setError('Please verify your email first.')
       } else {
@@ -81,29 +88,65 @@ export default function LoginForm() {
       </div>
 
       {isRegistered && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-100 text-green-700 rounded-lg text-sm">
+        <div className="mb-6 p-4 bg-green-50 border border-green-100 text-green-700 rounded-lg text-sm font-bold uppercase tracking-tight">
           Account created! Please sign in.
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email address
+          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
+            {loginMethod === 'email' ? 'Email Address' : 'Mobile Number'}
           </label>
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-            placeholder="you@example.com"
-          />
+          <div className="relative">
+            {loginMethod === 'email' ? (
+              <>
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                  placeholder="you@example.com"
+                />
+              </>
+            ) : (
+              <>
+                <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                <input
+                  type="tel"
+                  required
+                  autoComplete="tel"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                  placeholder="e.g. +91 98765 43210"
+                />
+              </>
+            )}
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => {
+              setLoginMethod(prev => prev === 'email' ? 'phone' : 'email')
+              setIdentifier('')
+              setError(null)
+            }}
+            className="mt-2 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+          >
+            {loginMethod === 'email' ? (
+              <><PhoneIcon size={10} /> Use Mobile Login</>
+            ) : (
+              <><Mail size={10} /> Use Email Login</>
+            )}
+          </button>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
             Password
           </label>
           <input
@@ -112,7 +155,7 @@ export default function LoginForm() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
             placeholder="••••••••"
           />
         </div>
@@ -120,14 +163,14 @@ export default function LoginForm() {
         <div className="flex items-center justify-end">
           <Link
             href="/forgot-password"
-            className="text-sm text-indigo-600 hover:underline font-medium"
+            className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
           >
             Forgot Password?
           </Link>
         </div>
 
         {error && (
-          <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100">
+          <div className="text-red-600 text-xs font-bold bg-red-50 p-4 rounded-xl border border-red-100">
             {error}
           </div>
         )}
@@ -135,9 +178,14 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-100 transition-all disabled:opacity-50"
+          className="w-full bg-blue-600 text-white py-3 px-4 rounded-xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
         >
-          {isLoading ? 'Signing in...' : 'Sign In'}
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2">
+              <Loader2 className="animate-spin" size={16} />
+              <span>Signing in...</span>
+            </div>
+          ) : 'Sign In'}
         </button>
       </form>
     </div>

@@ -1,11 +1,12 @@
 /*
  * SECURITY: Password Reset OTP Generation API
- * Generates and delivers a 6-digit OTP via Resend.
+ * Generates and delivers a 6-digit OTP via Resend or SMS.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resend } from '@/lib/email/resend'
+import { sendInviteSms } from '@/lib/sms/sendInvite'
 import crypto from 'crypto'
 
 export const runtime = 'nodejs'
@@ -31,10 +32,9 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanEmail = email.toLowerCase().trim()
+    const isSynthetic = cleanEmail.endsWith('@mobile.mealiez.in')
 
     // STEP 1: Verify user exists globally (auth.users)
-    // We do this server-side to decide whether to actually send, 
-    // but we return generic success to the client.
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.listUsers()
     const user = userData.users.find(u => u.email === cleanEmail)
 
@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
 
     // STEP 3: Delete previous OTPs and store new one
-    // We do this in a transaction-like way by deleting then inserting
     await supabaseAdmin
       .from('password_reset_otps')
       .delete()
@@ -67,31 +66,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'If an account exists, an OTP has been sent.' })
     }
 
-    // STEP 4: Send OTP via Resend
-    const { error: resendError } = await resend.emails.send({
-      from: `Mealiez <${emailFrom}>`,
-      to: cleanEmail,
-      subject: 'Mealiez Password Recovery',
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; text-align: center; background-color: #ffffff; padding: 40px 20px;">
-          <h1 style="color: #f97316; margin: 0 0 30px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.025em;">Mealiez</h1>
-          <h2 style="color: #111827; margin-bottom: 15px;">Password Recovery</h2>
-          <p style="color: #4b5563; font-size: 16px;">Use the following code to reset your password:</p>
-          <div style="background: #fff7ed; padding: 30px; border-radius: 16px; margin: 30px 0; border: 2px dashed #fdba74; letter-spacing: 0.5em; font-size: 36px; font-weight: 900; color: #f97316;">
-            ${otp}
+    // STEP 4: Deliver OTP (SMS for synthetic, Email for real)
+    if (isSynthetic) {
+      const phone = cleanEmail.split('@')[0]
+      // Use SMS service (Placeholder for now)
+      await sendInviteSms(
+        phone,
+        'Mealiez',
+        otp, // Using OTP as the 'password' in the message
+        'Recovery'
+      )
+    } else {
+      const { error: resendError } = await resend.emails.send({
+        from: `Mealiez <${emailFrom}>`,
+        to: cleanEmail,
+        subject: 'Mealiez Password Recovery',
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; text-align: center; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #f97316; margin: 0 0 30px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.025em;">Mealiez</h1>
+            <h2 style="color: #111827; margin-bottom: 15px;">Password Recovery</h2>
+            <p style="color: #4b5563; font-size: 16px;">Use the following code to reset your password:</p>
+            <div style="background: #fff7ed; padding: 30px; border-radius: 16px; margin: 30px 0; border: 2px dashed #fdba74; letter-spacing: 0.5em; font-size: 36px; font-weight: 900; color: #f97316;">
+              ${otp}
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">This code expires in 10 minutes.</p>
+            <p style="font-size: 14px; color: #9ca3af; margin-top: 30px;">
+              If you didn't request this, please ignore this email.
+            </p>
+            <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 40px 0;" />
+            <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Mealiez Mess Management</p>
           </div>
-          <p style="color: #6b7280; font-size: 14px;">This code expires in 10 minutes.</p>
-          <p style="font-size: 14px; color: #9ca3af; margin-top: 30px;">
-            If you didn't request this, please ignore this email.
-          </p>
-          <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 40px 0;" />
-          <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Mealiez Mess Management</p>
-        </div>
-      `
-    })
+        `
+      })
 
-    if (resendError) {
-      console.error('[OTP RESEND ERROR]', resendError)
+      if (resendError) {
+        console.error('[OTP RESEND ERROR]', resendError)
+      }
     }
 
     // Log for audit

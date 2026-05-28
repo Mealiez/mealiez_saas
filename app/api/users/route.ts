@@ -9,6 +9,7 @@ import { InviteUserSchema } from '@/lib/validations/users'
 import { isAdminOrAbove, canAssignRole } from '@/lib/auth/roles'
 import crypto from 'crypto'
 import { sendInviteEmail } from '@/lib/email/sendInvite'
+import { sendInviteSms } from '@/lib/sms/sendInvite'
 import dns from 'dns/promises'
 
 /**
@@ -56,15 +57,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, full_name, enrollment_no, role, phone, branch_id, designation_id, avatar_url } = result.data
+    const { 
+      email, 
+      full_name, 
+      enrollment_no, 
+      role, 
+      phone, 
+      branch_id, 
+      designation_id, 
+      avatar_url,
+      invite_method 
+    } = result.data
+
+    // Map identifier to auth email (Synthetic for phone)
+    const cleanPhone = phone?.replace(/[^\d+]/g, '')
+    const authEmail = invite_method === 'email' 
+      ? email! 
+      : `${cleanPhone}@mobile.mealiez.in`
 
     // STEP 0: Deliverability Check (Prevent Bounces)
-    const isDeliverable = await validateEmailDeliverability(email)
-    if (!isDeliverable) {
-      return NextResponse.json(
-        { error: `The domain for ${email} is invalid or has no mail servers. Please check for typos.` },
-        { status: 400 }
-      )
+    if (invite_method === 'email' && email) {
+      const isDeliverable = await validateEmailDeliverability(email)
+      if (!isDeliverable) {
+        return NextResponse.json(
+          { error: `The domain for ${email} is invalid or has no mail servers. Please check for typos.` },
+          { status: 400 }
+        )
+      }
     }
 
     if (!canAssignRole(currentUser.role, role)) {
@@ -74,10 +93,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // STEP 1: Check if user already exists in auth
+    // STEP 1: Check if user already exists in auth (using authEmail)
     const { data: conflict, error: rpcError } = await supabaseAdmin
       .rpc('check_user_invitation_conflict', {
-        p_email: email
+        p_email: authEmail
       })
 
     if (rpcError) {
@@ -94,7 +113,7 @@ export async function POST(request: NextRequest) {
     if (conflict) {
       // User exists in platform, we just fetch their ID to attach membership
       const { data: existingUser, error: fetchError } = await supabaseAdmin.auth.admin.listUsers()
-      const found = existingUser.users.find(u => u.email === email)
+      const found = existingUser.users.find(u => u.email === authEmail)
       
       if (!found) {
         return NextResponse.json({ error: 'Conflict detected but user not found' }, { status: 500 })
@@ -103,13 +122,14 @@ export async function POST(request: NextRequest) {
     } else {
       // STEP 2: Create Auth User (New to platform)
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email,
+        email: authEmail,
         password: tempPassword,
         email_confirm: true,
         user_metadata: {
           full_name,
           tenant_id: currentUser.tenant_id,
-          invited: true
+          invited: true,
+          real_phone: invite_method === 'phone' ? phone : undefined
         }
       })
 
@@ -135,7 +155,9 @@ export async function POST(request: NextRequest) {
         designation_id,
         is_active: true,
         must_change_password: true, // Forced change on login
-        avatar_url
+        avatar_url,
+        invite_method,
+        invited_temp_password: invite_method === 'phone' ? tempPassword : null
       }, {
         onConflict: 'auth_id' // Assuming 1 user = 1 tenant based on architecture note
       })
@@ -165,29 +187,41 @@ export async function POST(request: NextRequest) {
       console.error('[METADATA UPDATE ERROR]', metadataError)
     }
 
-    // STEP 5: Fetch Organization Name for Email
+    // STEP 5: Fetch Organization Name for Email/SMS
     const { data: tenant } = await supabaseAdmin
       .from('tenants')
       .select('name')
       .eq('id', currentUser.tenant_id)
       .single()
 
-    // STEP 6: Send Onboarding Email via Resend
+    // STEP 6: Send Onboarding Invitation
     const appUrl = process.env.APP_URL || 'http://localhost:3000'
     const loginUrl = `${appUrl}/login`
-    const emailResult = await sendInviteEmail(
-      email,
-      tenant?.name || 'Mealiez',
-      tempPassword,
-      loginUrl
-    )
+    
+    let inviteResult = { success: false }
+
+    if (invite_method === 'email') {
+      inviteResult = await sendInviteEmail(
+        email!,
+        tenant?.name || 'Mealiez',
+        tempPassword,
+        loginUrl
+      )
+    } else {
+      inviteResult = await sendInviteSms(
+        phone!,
+        tenant?.name || 'Mealiez',
+        tempPassword,
+        loginUrl
+      )
+    }
 
     return NextResponse.json({
       success: true,
-      email_sent: emailResult.success,
+      invite_sent: inviteResult.success,
       user: {
         id: newUser.id,
-        email,
+        identifier: invite_method === 'email' ? email : phone,
         full_name,
         role,
         branch_id: newUser.branch_id
