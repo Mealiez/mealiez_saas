@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { InviteUserSchema } from '@/lib/validations/users'
 import { type UserRole, getAssignableRoles, ROLE_LABELS } from '@/lib/auth/roles'
 import { createClient } from '@/lib/supabase/client'
-import { UserCircle, X, Loader2 } from 'lucide-react'
+import { UserCircle, X, Loader2, Mail, Phone as PhoneIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Branch {
@@ -46,7 +46,8 @@ export default function InviteUserModal({
     role: assignableRoles[0] || 'member' as UserRole,
     branch_id: initialBranches[0]?.id || '',
     designation_id: '',
-    avatar_url: ''
+    avatar_url: '',
+    invite_method: 'email' as 'email' | 'phone'
   })
 
   // Synchronize initial state if branches change or modal opens
@@ -108,7 +109,7 @@ export default function InviteUserModal({
       const data = await res.json()
 
       if (res.status === 201) {
-        setSuccess(`Invitation sent to ${form.email}`)
+        setSuccess(`Invitation sent to ${form.invite_method === 'email' ? form.email : form.phone}`)
         setForm({ 
           email: '', 
           full_name: '', 
@@ -117,7 +118,8 @@ export default function InviteUserModal({
           role: assignableRoles[0] || 'member',
           branch_id: initialBranches[0]?.id || '',
           designation_id: '',
-          avatar_url: ''
+          avatar_url: '',
+          invite_method: 'email'
         })
         setTimeout(() => {
           setIsOpen(false)
@@ -241,16 +243,51 @@ export default function InviteUserModal({
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="member@organization.com"
-                  value={form.email}
-                  onChange={e => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
-                />
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                  {form.invite_method === 'email' ? 'Email Address' : 'Mobile Number'}
+                </label>
+                {form.invite_method === 'email' ? (
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                    <input
+                      type="email"
+                      required
+                      placeholder="member@organization.com"
+                      value={form.email}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="e.g. +91 98765 43210"
+                      value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all outline-none"
+                    />
+                  </div>
+                )}
                 {fieldErrors?.email && <p className="mt-1.5 text-[10px] font-bold text-red-500 ml-1">{fieldErrors.email[0]}</p>}
+                {fieldErrors?.phone && <p className="mt-1.5 text-[10px] font-bold text-red-500 ml-1">{fieldErrors.phone[0]}</p>}
+                
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ 
+                    ...prev, 
+                    invite_method: prev.invite_method === 'email' ? 'phone' : 'email' 
+                  }))}
+                  className="mt-2 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+                >
+                  {form.invite_method === 'email' ? (
+                    <><PhoneIcon size={10} /> Use Mobile</>
+                  ) : (
+                    <><Mail size={10} /> Use Email</>
+                  )}
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

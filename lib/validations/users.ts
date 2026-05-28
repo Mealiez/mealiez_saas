@@ -9,7 +9,7 @@ import { z } from 'zod'
  * Schema for inviting a new user to a tenant.
  */
 export const InviteUserSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.preprocess((val) => val === '' ? null : val, z.string().email('Invalid email address').optional().nullable()),
   full_name: z.string()
     .min(2, 'Name must be at least 2 chars')
     .max(100)
@@ -18,16 +18,29 @@ export const InviteUserSchema = z.object({
     .max(50)
     .optional()
     .nullable(),
-  phone: z.string()
-    .max(20)
-    .optional()
-    .nullable(),
+  phone: z.preprocess((val) => val === '' ? null : val, z.string().max(20).optional().nullable()),
   role: z.enum(['manager', 'member'], { // ← UPDATED: admin removed
     error: 'Role must be manager or member'
   }),
   branch_id: z.string().uuid('Invalid branch').optional().nullable(),
   designation_id: z.string().uuid('Invalid designation').optional().nullable(),
-  avatar_url: z.preprocess((val) => val === '' ? null : val, z.string().url().optional().nullable())
+  avatar_url: z.preprocess((val) => val === '' ? null : val, z.string().url().optional().nullable()),
+  invite_method: z.enum(['email', 'phone']).default('email')
+}).superRefine((data, ctx) => {
+  if (data.invite_method === 'email' && !data.email) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Email is required',
+      path: ['email']
+    });
+  }
+  if (data.invite_method === 'phone' && !data.phone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Mobile number is required',
+      path: ['phone']
+    });
+  }
 })
 
 /**
