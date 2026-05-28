@@ -27,7 +27,7 @@ export const InviteUserSchema = z.object({
   }),
   branch_id: z.string().uuid('Invalid branch').optional().nullable(),
   designation_id: z.string().uuid('Invalid designation').optional().nullable(),
-  avatar_url: z.string().url().optional().nullable()
+  avatar_url: z.preprocess((val) => val === '' ? null : val, z.string().url().optional().nullable())
 })
 
 /**

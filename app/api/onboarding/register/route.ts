@@ -35,8 +35,8 @@ const RegisterSchema = z.object({
   password:  z.string().min(8).max(72),
   full_name: z.string().min(2).max(100).trim(),
   org_name:  z.string().min(2).max(100).trim(),
-  logo_url:   z.string().url().optional().nullable(),
-  avatar_url: z.string().url().optional().nullable()
+  logo_url:   z.preprocess((val) => val === '' ? null : val, z.string().url().optional().nullable()),
+  avatar_url: z.preprocess((val) => val === '' ? null : val, z.string().url().optional().nullable())
 })
 
 export async function POST(request: NextRequest) {
