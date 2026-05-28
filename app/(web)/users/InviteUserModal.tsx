@@ -102,11 +102,7 @@ export default function InviteUserModal({
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          designation_id: form.designation_id || null,
-          branch_id: form.branch_id || null
-        })
+        body: JSON.stringify(result.data)
       })
 
       const data = await res.json()
@@ -183,6 +179,10 @@ export default function InviteUserModal({
                   <div className="h-16 w-16 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center overflow-hidden">
                     {form.avatar_url ? (
                       <img src={form.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : form.full_name ? (
+                      <div className="h-full w-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-xl uppercase">
+                        {form.full_name.charAt(0)}
+                      </div>
                     ) : (
                       <UserCircle className="text-gray-200" size={40} />
                     )}

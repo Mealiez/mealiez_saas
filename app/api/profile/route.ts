@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 const UpdateProfileSchema = z.object({
   full_name: z.string().min(2).max(100).optional(),
   phone: z.string().max(20).optional().nullable(),
-  avatar_url: z.string().url().optional().nullable()
+  avatar_url: z.preprocess((val) => val === '' ? null : val, z.string().url().optional().nullable())
 })
 
 export async function PATCH(request: NextRequest) {
