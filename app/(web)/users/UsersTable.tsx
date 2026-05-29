@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { type UserRole, isAdminOrAbove, type AuthUser } from '@/lib/auth/roles'
 import RoleUpdateDropdown from './RoleUpdateDropdown'
-import { MoreVertical, User, Trash2, Eye, ShieldAlert, Filter, Search } from 'lucide-react'
+import { MoreVertical, User, Trash2, Eye, ShieldAlert, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Button } from '@/components/ui/button'
 
 type UserRow = {
   id: string
@@ -42,15 +43,27 @@ interface UsersTableProps {
   initialUsers: UserRow[]
   currentUser: AuthUser
   designations: { id: string, name: string }[]
+  totalCount: number
+  currentPage: number
+  pageSize: number
 }
 
-export default function UsersTable({ initialUsers, currentUser, designations }: UsersTableProps) {
+export default function UsersTable({ 
+  initialUsers, 
+  currentUser, 
+  designations,
+  totalCount,
+  currentPage,
+  pageSize
+}: UsersTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [users, setUsers] = useState<UserRow[]>(initialUsers)
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
+
+  const totalPages = Math.ceil(totalCount / pageSize)
 
   // SYNC: Update internal state when server-side props change (e.g. after search/filter)
   useEffect(() => {
@@ -64,25 +77,37 @@ export default function UsersTable({ initialUsers, currentUser, designations }: 
 
   const currentDesignationFilter = searchParams.get('designation') || ''
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
+  const updateQueryParams = (newParams: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString())
-    if (searchInput.trim()) {
-      params.set('search', searchInput.trim())
-    } else {
-      params.delete('search')
-    }
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value)
+      } else {
+        params.delete(key)
+      }
+    })
     router.push(`/users?${params.toString()}`)
   }
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    updateQueryParams({
+      search: searchInput.trim() || null,
+      page: '1' // Reset to first page on search
+    })
+  }
+
   const handleDesignationFilter = (id: string) => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (id) {
-      params.set('designation', id)
-    } else {
-      params.delete('designation')
-    }
-    router.push(`/users?${params.toString()}`)
+    updateQueryParams({
+      designation: id || null,
+      page: '1' // Reset to first page on filter change
+    })
+  }
+
+  const handlePageChange = (newPage: number) => {
+    updateQueryParams({
+      page: newPage.toString()
+    })
   }
 
   const toggleStatus = async (userId: string, currentStatus: boolean) => {
@@ -290,6 +315,41 @@ export default function UsersTable({ initialUsers, currentUser, designations }: 
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+        <div className="text-xs font-black uppercase text-gray-400 tracking-widest">
+          Total: {totalCount} members
+        </div>
+        
+        {totalPages > 1 && (
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => handlePageChange(currentPage - 1)}
+              className="rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white"
+            >
+              <ChevronLeft size={16} className="mr-1" /> Prev
+            </Button>
+            
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+              Page {currentPage} of {totalPages}
+            </span>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(currentPage + 1)}
+              className="rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white"
+            >
+              Next <ChevronRight size={16} className="ml-1" />
+            </Button>
+          </div>
+        )}
       </div>
 
       <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>

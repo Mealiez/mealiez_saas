@@ -3,14 +3,18 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Pencil, Trash2, Search } from 'lucide-react';
 
 interface Branch {
   id: string;
   name: string;
   code: string;
+  address?: string | null;
   city: string | null;
   state: string | null;
+  pincode?: string | null;
   manager_name: string | null;
+  manager_phone?: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -18,9 +22,10 @@ interface Branch {
 interface BranchTableProps {
   branches: Branch[];
   onEdit: (branch: Branch) => void;
+  onDelete: (id: string) => void;
 }
 
-export default function BranchTable({ branches, onEdit }: BranchTableProps) {
+export default function BranchTable({ branches, onEdit, onDelete }: BranchTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filtered = branches.filter(b => 
@@ -32,7 +37,7 @@ export default function BranchTable({ branches, onEdit }: BranchTableProps) {
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="p-4 border-b border-gray-100 flex items-center gap-4">
         <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input
             type="text"
             placeholder="Search by name or code..."
@@ -78,14 +83,28 @@ export default function BranchTable({ branches, onEdit }: BranchTableProps) {
                     {branch.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
                   <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={() => onEdit(branch)}
-                    className="hover:bg-blue-50 hover:text-blue-600 rounded-lg"
+                    className="hover:bg-blue-50 hover:text-blue-600 rounded-lg h-8 w-8 p-0"
+                    title="Edit Branch"
                   >
-                    Edit
+                    <Pencil size={16} />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete ${branch.name}?`)) {
+                        onDelete(branch.id)
+                      }
+                    }}
+                    className="hover:bg-red-50 hover:text-red-600 rounded-lg h-8 w-8 p-0"
+                    title="Delete Branch"
+                  >
+                    <Trash2 size={16} />
                   </Button>
                 </td>
               </tr>

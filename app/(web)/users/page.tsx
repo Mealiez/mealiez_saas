@@ -8,7 +8,7 @@ import InviteUserModal from './InviteUserModal'
 export default async function UsersPage({
   searchParams
 }: {
-  searchParams: { designation?: string; search?: string }
+  searchParams: { designation?: string; search?: string; page?: string }
 }) {
   const currentUser = await requireAuth()
 
@@ -16,6 +16,11 @@ export default async function UsersPage({
   if (currentUser.role !== 'admin') {
     redirect('/dashboard');
   }
+
+  const pageSize = 10
+  const currentPage = Number(searchParams.page) || 1
+  const from = (currentPage - 1) * pageSize
+  const to = from + pageSize - 1
 
   const supabase = await createClient()
 
@@ -46,7 +51,7 @@ export default async function UsersPage({
       avatar_url,
       designation_id,
       designation:designations(name)
-    `)
+    `, { count: 'exact' })
     .eq('tenant_id', currentUser.tenant_id) // SECURITY: Must be same tenant
     .order('created_at', { ascending: false })
 
@@ -60,7 +65,7 @@ export default async function UsersPage({
     query = query.or(`full_name.ilike.${term},enrollment_no.ilike.${term}`)
   }
 
-  const { data: users } = await query.limit(50)
+  const { data: users, count: totalCount } = await query.range(from, to)
 
   return (
     <div className="p-8">
@@ -88,6 +93,9 @@ export default async function UsersPage({
             initialUsers={(users as any[]) ?? []}
             currentUser={currentUser}
             designations={(designations as any[]) ?? []}
+            totalCount={totalCount || 0}
+            currentPage={currentPage}
+            pageSize={pageSize}
           />
         </div>
       </div>

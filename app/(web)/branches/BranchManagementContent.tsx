@@ -3,15 +3,19 @@
 import { useState, useEffect } from 'react';
 import BranchTable from './BranchTable';
 import CreateBranchModal from './CreateBranchModal';
+import EditBranchModal from './EditBranchModal';
 import { toast } from 'sonner';
 
 interface Branch {
   id: string;
   name: string;
   code: string;
-  city: string | null;
-  state: string | null;
-  manager_name: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  manager_name?: string | null;
+  manager_phone?: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -19,6 +23,8 @@ interface Branch {
 export default function BranchManagementContent() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const fetchBranches = async () => {
     setIsLoading(true);
@@ -39,7 +45,23 @@ export default function BranchManagementContent() {
   }, []);
 
   const handleEdit = (branch: Branch) => {
-    toast.info(`Editing ${branch.name} - Feature coming soon!`);
+    setSelectedBranch(branch);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/branches/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete branch');
+      
+      toast.success('Branch deleted successfully');
+      fetchBranches();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   return (
@@ -63,7 +85,7 @@ export default function BranchManagementContent() {
           <div className="h-64 bg-gray-100 rounded-3xl" />
         </div>
       ) : branches.length > 0 ? (
-        <BranchTable branches={branches} onEdit={handleEdit} />
+        <BranchTable branches={branches} onEdit={handleEdit} onDelete={handleDelete} />
       ) : (
         <div className="flex flex-col items-center justify-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 text-center space-y-4">
           <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm">
@@ -88,6 +110,16 @@ export default function BranchManagementContent() {
           </p>
         </div>
       </div>
+
+      <EditBranchModal
+        branch={selectedBranch}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedBranch(null);
+        }}
+        onSuccess={fetchBranches}
+      />
     </div>
   );
 }
