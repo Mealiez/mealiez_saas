@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { isAdminOrAbove } from '@/lib/auth/roles'
 import UsersTable from './UsersTable'
 import InviteUserModal from './InviteUserModal'
+import BulkInviteModal from './BulkInviteModal'
+import { revalidatePath } from 'next/cache'
 
 export default async function UsersPage({
   searchParams
@@ -67,6 +69,12 @@ export default async function UsersPage({
 
   const { data: users, count: totalCount } = await query.range(from, to)
 
+  // Server action helper for refreshing
+  const refreshData = async () => {
+    'use server'
+    revalidatePath('/users')
+  }
+
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -78,11 +86,18 @@ export default async function UsersPage({
           </div>
           <div className="flex items-center gap-3">
             {isAdminOrAbove(currentUser.role) && (
-              <InviteUserModal 
-                currentUserRole={currentUser.role} 
-                initialBranches={(branches as any[]) ?? []}
-                initialDesignations={(designations as any[]) ?? []}
-              />
+              <>
+                <BulkInviteModal 
+                  branches={(branches as any[]) ?? []}
+                  designations={(designations as any[]) ?? []}
+                  onSuccess={refreshData}
+                />
+                <InviteUserModal 
+                  currentUserRole={currentUser.role} 
+                  initialBranches={(branches as any[]) ?? []}
+                  initialDesignations={(designations as any[]) ?? []}
+                />
+              </>
             )}
           </div>
         </header>
