@@ -136,6 +136,20 @@ export default function BulkInviteModal({ onSuccess, branches, designations }: B
     }
   }
 
+  const downloadTemplate = () => {
+    const headers = ['full_name', 'email', 'phone', 'enrollment_no', 'role', 'branch_name', 'designation_name', 'invite_method']
+    const csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + "\n" + 
+      "John Doe,john@example.com,,ENR001,member,Main Branch,Staff,email"
+    
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", "mealiez_invite_template.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const percentage = Math.round((progress.current / progress.total) * 100) || 0
 
   return (
