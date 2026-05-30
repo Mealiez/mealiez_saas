@@ -10,6 +10,7 @@ import { isAdminOrAbove, canAssignRole } from '@/lib/auth/roles'
 import crypto from 'crypto'
 import { sendInviteEmail } from '@/lib/email/sendInvite'
 import { sendInviteSms } from '@/lib/sms/sendInvite'
+import { normalizePhone, getPhoneAuthEmail } from '@/lib/utils/phone'
 import dns from 'dns/promises'
 
 /**
@@ -70,10 +71,10 @@ export async function POST(request: NextRequest) {
     } = result.data
 
     // Map identifier to auth email (Synthetic for phone)
-    const cleanPhone = phone?.replace(/[^\d+]/g, '')
+    const normalizedPhone = normalizePhone(phone)
     const authEmail = invite_method === 'email' 
       ? email! 
-      : `${cleanPhone}@mobile.mealiez.in`
+      : getPhoneAuthEmail(normalizedPhone!)
 
     // STEP 0: Deliverability Check (Prevent Bounces)
     if (invite_method === 'email' && email) {
