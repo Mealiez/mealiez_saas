@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import AddTransactionModal from './AddTransactionModal'
 import { TransactionType } from '@/lib/validations/inventory'
@@ -27,6 +28,7 @@ interface StockOverviewProps {
 }
 
 export default function StockOverview({ initialStock, canManage }: StockOverviewProps) {
+  const router = useRouter()
   const [stock, setStock] = useState<StockRow[]>(initialStock)
   const [filter, setFilter] = useState<'all' | 'low_stock' | 'out_of_stock' | 'ok'>('all')
   const [search, setSearch] = useState('')
@@ -50,6 +52,10 @@ export default function StockOverview({ initialStock, canManage }: StockOverview
   }
 
   const handleTransactionAdded = async () => {
+    // 1. Refresh the parent server component data (Summary Cards)
+    router.refresh()
+    
+    // 2. Fetch fresh stock data for the local table
     const res = await fetch('/api/inventory/stock')
     const data = await res.json()
     setStock(data.data ?? [])
