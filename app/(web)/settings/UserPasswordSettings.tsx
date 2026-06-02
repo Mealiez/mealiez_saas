@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { KeyRound, Download, Loader2, Search, Smartphone } from 'lucide-react'
+import { KeyRound, Download, Loader2, Search, Smartphone, Hash, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface UserWithPassword {
@@ -13,6 +13,8 @@ interface UserWithPassword {
   phone: string | null
   invited_temp_password: string | null
   created_at: string
+  enrollment_no: string | null
+  branches: { name: string } | null
 }
 
 export default function UserPasswordSettings() {
@@ -31,7 +33,7 @@ export default function UserPasswordSettings() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, full_name, phone, invited_temp_password, created_at')
+        .select('id, full_name, phone, invited_temp_password, created_at, enrollment_no, branches(name)')
         .eq('invite_method', 'phone')
         .not('invited_temp_password', 'is', null)
         .order('created_at', { ascending: false })
@@ -51,9 +53,11 @@ export default function UserPasswordSettings() {
     setIsExporting(true)
     
     try {
-      const headers = ['Full Name', 'Mobile Number', 'Temporary Password', 'Invited On']
+      const headers = ['Full Name', 'Employee Code', 'Branch Name', 'Mobile Number', 'Temporary Password', 'Invited On']
       const rows = users.map(u => [
         u.full_name,
+        u.enrollment_no || 'N/A',
+        u.branches?.name || 'N/A',
         u.phone || 'N/A',
         u.invited_temp_password || '',
         new Date(u.created_at).toLocaleString()
@@ -83,7 +87,8 @@ export default function UserPasswordSettings() {
 
   const filteredUsers = users.filter(u => 
     u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    (u.phone && u.phone.includes(search))
+    (u.phone && u.phone.includes(search)) ||
+    (u.enrollment_no && u.enrollment_no.toLowerCase().includes(search.toLowerCase()))
   )
 
   return (
@@ -115,7 +120,7 @@ export default function UserPasswordSettings() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
               type="text"
-              placeholder="Search by name or mobile..."
+              placeholder="Search by name, code or mobile..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
@@ -128,6 +133,8 @@ export default function UserPasswordSettings() {
             <thead className="bg-gray-50/50">
               <tr>
                 <th className="px-8 py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Member</th>
+                <th className="px-8 py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Code</th>
+                <th className="px-8 py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Branch</th>
                 <th className="px-8 py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Mobile</th>
                 <th className="px-8 py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Temp Password</th>
                 <th className="px-8 py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Invited</th>
@@ -136,13 +143,13 @@ export default function UserPasswordSettings() {
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={4} className="px-8 py-12 text-center">
+                  <td colSpan={6} className="px-8 py-12 text-center">
                     <Loader2 className="animate-spin text-blue-600 mx-auto" size={24} />
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-8 py-12 text-center text-gray-400 font-bold uppercase text-[10px] tracking-widest">
+                  <td colSpan={6} className="px-8 py-12 text-center text-gray-400 font-bold uppercase text-[10px] tracking-widest">
                     No mobile-invited users found
                   </td>
                 </tr>
@@ -151,6 +158,18 @@ export default function UserPasswordSettings() {
                   <tr key={user.id} className="hover:bg-blue-50/30 transition-colors">
                     <td className="px-8 py-4">
                       <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{user.full_name}</p>
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                        <Hash size={12} className="text-gray-400" />
+                        {user.enrollment_no || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                        <MapPin size={12} className="text-gray-400" />
+                        {user.branches?.name || 'Global'}
+                      </div>
                     </td>
                     <td className="px-8 py-4">
                       <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
