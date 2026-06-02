@@ -27,6 +27,19 @@ export default async function InventoryPage() {
       p_tenant_id: user.tenant_id
     })
 
+  // Fetch inventory summary via new RPC
+  const { data: summaryData } = await supabase
+    .rpc('get_inventory_summary', {
+      p_tenant_id: user.tenant_id
+    })
+  
+  const invSummary = summaryData?.[0] || {
+    total_value: 0,
+    out_of_stock_count: 0,
+    low_stock_count: 0,
+    expiring_soon_count: 0
+  }
+
   // Fetch active alerts
   const { data: alerts } = await supabase
     .from('inventory_alerts')
@@ -56,19 +69,6 @@ export default async function InventoryPage() {
 
   const mealCost = todayDeductions?.reduce((acc: number, val: any) => acc + (val.cost_amount || 0), 0) || 0
 
-  // Build summary counts
-  const summary = {
-    totalValue: 0, // Mock for now, would sum (stock * avg_cost)
-    out_of_stock: stockData?.filter(
-      (r: any) => r.stock_status === 'out_of_stock'
-    ).length ?? 0,
-    low_stock: stockData?.filter(
-      (r: any) => r.stock_status === 'low_stock'
-    ).length ?? 0,
-    expiring: 0, // Mock
-    mealCost: mealCost,
-  }
-
   const canManage = ['admin', 'manager'].includes(user.role)
   const canAdmin = user.role === 'admin'
   const hasInventory = stockData && stockData.length > 0;
@@ -94,7 +94,9 @@ export default async function InventoryPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Current Inventory Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$12,450</div>
+            <div className="text-2xl font-bold">
+              ${invSummary.total_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
             <p className="text-xs text-muted-foreground">Estimated across all items</p>
           </CardContent>
         </Card>
@@ -104,7 +106,9 @@ export default async function InventoryPage() {
             <CardTitle className="text-sm font-medium text-amber-700">Low Stock Items</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-700">{summary.low_stock + summary.out_of_stock}</div>
+            <div className="text-2xl font-bold text-amber-700">
+              {invSummary.low_stock_count + invSummary.out_of_stock_count}
+            </div>
             <p className="text-xs text-amber-600">Action recommended</p>
           </CardContent>
         </Card>
@@ -114,7 +118,7 @@ export default async function InventoryPage() {
             <CardTitle className="text-sm font-medium text-red-700">Expiring Items</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-700">3</div>
+            <div className="text-2xl font-bold text-red-700">{invSummary.expiring_soon_count}</div>
             <p className="text-xs text-red-600">Within next 7 days</p>
           </CardContent>
         </Card>
@@ -124,7 +128,9 @@ export default async function InventoryPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Today's Meal Cost</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${summary.mealCost}</div>
+            <div className="text-2xl font-bold">
+              ${mealCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
             <p className="text-xs text-muted-foreground">Based on consumption</p>
           </CardContent>
         </Card>
