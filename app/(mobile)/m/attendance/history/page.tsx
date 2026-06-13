@@ -37,17 +37,19 @@ export default function MobileAttendanceHistory() {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await fetch(`/api/attendance/mark`); // Assuming this endpoint or similar exists for self history
-        // Actually I created /api/users/[id]/attendance earlier. I should use that or a generic self endpoint.
-        // Let's use the one that works for the current user.
         const resUser = await fetch('/api/auth/session');
+        if (!resUser.ok) throw new Error('Failed to get session');
+        
         const session = await resUser.json();
         if (session.user) {
           const resLogs = await fetch(`/api/users/${session.user.id}/attendance`);
+          if (!resLogs.ok) throw new Error('Failed to get logs');
+          
           const data = await resLogs.json();
           setLogs(data.data || []);
         }
       } catch (err) {
+        console.error('[FETCH_LOGS_ERROR]', err);
         toast.error('Failed to load history');
       } finally {
         setIsLoading(false);
