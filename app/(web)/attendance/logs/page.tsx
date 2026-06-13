@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AttendanceLogsContent from './AttendanceLogsContent';
 
+export const dynamic = 'force-dynamic'
+
 /*
  * SERVER COMPONENT: Attendance Logs
  * Fetches filtered records from the database.
@@ -23,6 +25,11 @@ export default async function AttendanceLogsPage({
   const supabase = await createClient();
 
   const filterDate = searchParams.date || new Date().toISOString().split('T')[0];
+  const startOfDay = new Date(filterDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
+
   const filterMeal = searchParams.meal_type || 'all';
   const filterBranch = searchParams.branch_id || 'all';
 
@@ -36,25 +43,29 @@ export default async function AttendanceLogsPage({
   let query = supabase
     .from('attendance_records')
     .select(`
-      id, marked_at, meal_type, attendance_source,
+      id, marked_at, method,
+      session:attendance_sessions!inner (
+        meal_type,
+        branch_id,
+        branch:branches ( name )
+      ),
       user:users ( 
         full_name,
         designation:designations(name)
-      ),
-      branch:branches ( name )
+      )
     `)
-    .gte('marked_at', `${filterDate}T00:00:00`)
-    .lte('marked_at', `${filterDate}T23:59:59`);
+    .gte('marked_at', startOfDay.toISOString())
+    .lt('marked_at', endOfDay.toISOString());
 
   if (filterMeal !== 'all') {
-    query = query.eq('meal_type', filterMeal);
+    query = query.eq('attendance_sessions.meal_type', filterMeal);
   }
 
   if (filterBranch !== 'all') {
     if (filterBranch === 'global') {
-      query = query.is('branch_id', null);
+      query = query.is('attendance_sessions.branch_id', null);
     } else {
-      query = query.eq('branch_id', filterBranch);
+      query = query.eq('attendance_sessions.branch_id', filterBranch);
     }
   }
 

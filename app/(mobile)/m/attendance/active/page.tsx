@@ -53,11 +53,12 @@ export default function MobileAttendanceDashboard() {
       const dataSessions = await resSessions.json();
       setActiveSessions(dataSessions.data?.filter((s: any) => s.is_active) || []);
 
-      // 2. Fetch Stats (Simplified for mobile)
-      const today = new Date().toISOString().split('T')[0];
-      const resStats = await fetch(`/api/attendance/sessions`); // Re-using for now or could have specific stats endpoint
-      // Mocking stats for the prompt as I don't want to overcomplicate the tool call
-      setStats({ total: 42, breakfast: 12, lunch: 25, dinner: 5 });
+      // 2. Fetch Stats
+      const resStats = await fetch('/api/attendance/stats');
+      const dataStats = await resStats.json();
+      if (dataStats.stats) {
+        setStats(dataStats.stats);
+      }
 
       // 3. Fetch Branches
       const resBranches = await fetch('/api/branches');
@@ -76,6 +77,16 @@ export default function MobileAttendanceDashboard() {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => {
+      // Just fetch stats and sessions periodically
+      fetch('/api/attendance/stats').then(res => res.json()).then(data => {
+        if (data.stats) setStats(data.stats);
+      });
+      fetch('/api/attendance/sessions').then(res => res.json()).then(data => {
+        setActiveSessions(data.data?.filter((s: any) => s.is_active) || []);
+      });
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleCreateSession = async (e: React.FormEvent) => {
