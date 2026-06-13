@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Mail, Phone as PhoneIcon, Loader2 } from 'lucide-react'
+import { getDashboardPath } from '@/lib/utils'
 
 export default function LoginForm() {
   const router = useRouter()
@@ -75,7 +76,7 @@ export default function LoginForm() {
       router.refresh()
     } catch (err) {
       // Fallback
-      router.push('/dashboard')
+      router.push(getDashboardPath())
     }
   }
 

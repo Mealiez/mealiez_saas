@@ -62,6 +62,11 @@ export default function MobileMealRequests() {
   useEffect(() => {
     if (user) {
        Promise.all([fetchRequests(), fetchSettings()]).finally(() => setIsLoading(false));
+
+       // Re-fetch settings when window regains focus to reflect changes from other tabs
+       const handleFocus = () => fetchSettings();
+       window.addEventListener('focus', handleFocus);
+       return () => window.removeEventListener('focus', handleFocus);
     }
   }, [user]);
 
@@ -75,7 +80,14 @@ export default function MobileMealRequests() {
 
     tick();
     const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    
+    // Periodically re-fetch settings from DB to stay in sync with changes
+    const settingsInterval = setInterval(fetchSettings, 30000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(settingsInterval);
+    };
   }, [settings]);
 
   const handleAction = async (date: string, type: string, action: 'request' | 'cancel') => {
@@ -155,7 +167,7 @@ export default function MobileMealRequests() {
            <div className="text-left">
               <div className="flex items-center gap-2">
                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none">{type}</p>
-                 {displayStatus === 'book' && (
+                 {windowStatus === 'open' && (
                    <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
                       <Timer size={10} />
                       <span className="text-[9px] font-bold font-mono">{statusInfo?.timeLeft}</span>
