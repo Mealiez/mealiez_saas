@@ -16,6 +16,10 @@ export type MealWindowStatus = 'open' | 'ended' | 'not_opened';
  * @param timezone string - e.g. "Asia/Kolkata" or "UTC"
  */
 export function getMealSessionStatus(startTime: string, timezone: string = 'UTC'): MealSessionStatus {
+  if (!startTime) {
+    return { isClosed: true, timeLeft: '00:00:00', secondsLeft: 0 };
+  }
+
   // 1. Get current time in the target timezone
   const now = new Date();
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -32,27 +36,29 @@ export function getMealSessionStatus(startTime: string, timezone: string = 'UTC'
   const parts = formatter.formatToParts(now);
   const getPart = (type: string) => parts.find(p => p.type === type)?.value;
 
-  // Create a Date object representing "now" in the target timezone
-  const localNow = new Date(
-    Number(getPart('year')),
-    Number(getPart('month')) - 1,
-    Number(getPart('day')),
-    Number(getPart('hour')),
-    Number(getPart('minute')),
-    Number(getPart('second'))
-  );
+  const year = Number(getPart('year'));
+  const month = Number(getPart('month'));
+  const day = Number(getPart('day'));
+  let hour = Number(getPart('hour'));
+  const minute = Number(getPart('minute'));
+  const second = Number(getPart('second'));
+
+  // Handle "24" hour format which some environments return for midnight
+  if (hour === 24) hour = 0;
+
+  // Create a Date object representing "now" in the target timezone components
+  const localNow = new Date(year, month - 1, day, hour, minute, second);
 
   // 2. Parse session start time
-  const [hours, minutes] = startTime.split(':').map(Number);
-  const sessionStart = new Date(
-    Number(getPart('year')),
-    Number(getPart('month')) - 1,
-    Number(getPart('day')),
-    hours,
-    minutes || 0,
-    0,
-    0
-  );
+  const timeParts = startTime.split(':').map(Number);
+  const sHour = timeParts[0];
+  const sMin = timeParts[1] || 0;
+  
+  if (isNaN(sHour)) {
+    return { isClosed: true, timeLeft: '00:00:00', secondsLeft: 0 };
+  }
+
+  const sessionStart = new Date(year, month - 1, day, sHour, sMin, 0, 0);
 
   const diffMs = sessionStart.getTime() - localNow.getTime();
   const diffSec = Math.floor(diffMs / 1000);
@@ -79,10 +85,9 @@ export function getMealSessionStatus(startTime: string, timezone: string = 'UTC'
 }
 
 /**
- * Determines the window status for all meal slots in sequence.
- * - Breakfast is open until its start time.
- * - Lunch opens after Breakfast ends, until its start time.
- * - Dinner opens after Lunch ends, until its start time.
+ * Determines the window status for all meal slots.
+ * Updated: Windows are now independent. A user can book any meal 
+ * whose deadline (start time) has not passed.
  */
 export function getMealSequenceStatus(
   settings: { breakfast_start: string; lunch_start: string; dinner_start: string; timezone: string }
@@ -91,20 +96,18 @@ export function getMealSequenceStatus(
   const ln = getMealSessionStatus(settings.lunch_start, settings.timezone);
   const dn = getMealSessionStatus(settings.dinner_start, settings.timezone);
 
-  const statuses: Record<string, { windowStatus: MealWindowStatus; timeLeft: string }> = {
+  return {
     breakfast: {
       windowStatus: bf.isClosed ? 'ended' : 'open',
       timeLeft: bf.timeLeft
     },
     lunch: {
-      windowStatus: !bf.isClosed ? 'not_opened' : (ln.isClosed ? 'ended' : 'open'),
+      windowStatus: ln.isClosed ? 'ended' : 'open',
       timeLeft: ln.timeLeft
     },
     dinner: {
-      windowStatus: !ln.isClosed ? 'not_opened' : (dn.isClosed ? 'ended' : 'open'),
+      windowStatus: dn.isClosed ? 'ended' : 'open',
       timeLeft: dn.timeLeft
     }
   };
-
-  return statuses;
 }

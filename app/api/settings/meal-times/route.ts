@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/auth/session'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/settings/meal-times
  * Fetch the meal time configuration for the current tenant.

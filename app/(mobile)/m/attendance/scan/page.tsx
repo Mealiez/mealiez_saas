@@ -131,21 +131,33 @@ export default function ScanAttendancePage() {
       });
       
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // Wait for play to confirm stream is active
-        await videoRef.current.play();
-      }
       setScanState('scanning');
-      startScanning();
     } catch (err) {
       console.error('[CAMERA_ERROR]', err);
       setErrorMessage(
-        'Camera access denied. Please allow camera permission and retry.'
+        'Camera access denied or not available. Please allow camera permission and retry.'
       );
       setScanState('error');
     }
   }
+
+  // Handle stream attachment after state change to 'scanning'
+  useEffect(() => {
+    if (scanState === 'scanning' && streamRef.current && videoRef.current) {
+      const video = videoRef.current;
+      video.srcObject = streamRef.current;
+      
+      video.onloadedmetadata = () => {
+        video.play().then(() => {
+          startScanning();
+        }).catch(err => {
+          console.error('[VIDEO_PLAY_ERROR]', err);
+          setErrorMessage('Failed to start video playback. Please try again.');
+          setScanState('error');
+        });
+      };
+    }
+  }, [scanState, startScanning]);
 
   // Reset to idle
   function reset() {

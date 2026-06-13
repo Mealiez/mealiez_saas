@@ -158,16 +158,29 @@ export default function AdminScanMobilePage() {
         video: { facingMode: 'environment' } // Rear camera for mobile admin
       })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        animFrameRef.current = requestAnimationFrame(tick)
-      }
     } catch (err) {
       console.error('[CAMERA_ERROR]', err)
       setErrorMsg('Could not access camera. Please check permissions.')
       setState('error')
     }
   }
+
+  // Handle stream attachment after state change to 'scanning'
+  useEffect(() => {
+    if (state === 'scanning' && streamRef.current && videoRef.current) {
+      const video = videoRef.current
+      video.srcObject = streamRef.current
+      video.onloadedmetadata = () => {
+        video.play().then(() => {
+          animFrameRef.current = requestAnimationFrame(tick)
+        }).catch(err => {
+          console.error('[VIDEO_PLAY_ERROR]', err)
+          setErrorMsg('Failed to start video playback.')
+          setState('error')
+        })
+      }
+    }
+  }, [state, tick])
 
   useEffect(() => {
     return () => stopCamera()
