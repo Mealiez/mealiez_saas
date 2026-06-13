@@ -17,7 +17,8 @@ import {
   Activity,
   CheckCircle2,
   Clock,
-  QrCode
+  QrCode,
+  FileBarChart
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -42,12 +43,22 @@ export default function MobileAttendanceDashboard() {
   const [newSession, setNewSession] = useState({
     label: '',
     meal_type: 'lunch',
-    branch_id: ''
+    branch_id: '',
+    session_date: new Date().toISOString().split('T')[0],
+    scan_mode: 'session' as 'session' | 'member'
   });
   const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
 
   const fetchData = async () => {
     try {
+      const resUser = await fetch('/api/auth/session');
+      const session = await resUser.json();
+      
+      if (!session.user || session.user.role !== 'manager') {
+         router.replace('/m/home');
+         return;
+      }
+
       // 1. Fetch Sessions
       const resSessions = await fetch('/api/attendance/sessions');
       const dataSessions = await resSessions.json();
@@ -65,7 +76,11 @@ export default function MobileAttendanceDashboard() {
       const dataBranches = await resBranches.json();
       setBranches(dataBranches.data || []);
       if (dataBranches.data?.length > 0) {
-        setNewSession(prev => ({ ...prev, branch_id: dataBranches.data[0].id }));
+        setNewSession(prev => ({ 
+          ...prev, 
+          branch_id: dataBranches.data[0].id,
+          label: `Live ${prev.meal_type.toUpperCase()} - ${dataBranches.data[0].name}`
+        }));
       }
 
     } catch (err) {
@@ -119,6 +134,16 @@ export default function MobileAttendanceDashboard() {
       </div>
     );
   }
+
+  const updateLabel = (meal: string, branchId: string) => {
+    const branchName = branches.find(b => b.id === branchId)?.name || 'Branch';
+    setNewSession(prev => ({
+      ...prev,
+      meal_type: meal,
+      branch_id: branchId,
+      label: `Live ${meal.toUpperCase()} - ${branchName}`
+    }));
+  };
 
   return (
     <div className="p-6 space-y-8 animate-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -206,53 +231,102 @@ export default function MobileAttendanceDashboard() {
               </div>
            </div>
         </div>
+        
+        <Link href="/m/reports">
+           <Button variant="outline" className="w-full h-14 rounded-2xl border-gray-200 text-gray-500 font-black uppercase text-[10px] tracking-[0.2em] group hover:bg-gray-900 hover:text-white transition-all">
+              <FileBarChart className="mr-2 w-4 h-4 group-hover:animate-bounce" />
+              View Module Reports
+           </Button>
+        </Link>
       </section>
 
       {/* CREATE SESSION OVERLAY */}
       {isCreating && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-           <div className="bg-white rounded-t-[3rem] p-8 space-y-8 animate-in slide-in-from-bottom-10 duration-500">
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+           <div className="bg-white rounded-t-[3rem] p-8 space-y-8 animate-in slide-in-from-bottom-10 duration-500 max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between">
-                 <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">New Live Session</h2>
-                 <button onClick={() => setIsCreating(false)} className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-gray-900 transition-colors">
-                    <X size={20} />
+                 <div className="space-y-1">
+                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">New Live Session</h2>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Setup a live scan point</p>
+                 </div>
+                 <button onClick={() => setIsCreating(false)} className="p-3 bg-gray-50 rounded-2xl text-gray-400 hover:text-gray-900 transition-colors">
+                    <X size={24} />
                  </button>
               </div>
 
-              <form onSubmit={handleCreateSession} className="space-y-6">
-                 <div className="space-y-2">
-                    <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Session Label</Label>
+              <form onSubmit={handleCreateSession} className="space-y-8 pb-24">
+                 <div className="space-y-3">
+                    <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Session Label</Label>
                     <Input 
                       placeholder="e.g. Lunch at Main Mess"
                       value={newSession.label}
                       onChange={e => setNewSession({...newSession, label: e.target.value})}
-                      className="rounded-2xl border-gray-100 bg-gray-50 font-bold h-14 px-5 focus:bg-white"
+                      className="rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-xs h-16 px-6 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all"
                       required
                     />
                  </div>
 
                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Meal Type</Label>
-                       <select 
-                         value={newSession.meal_type}
-                         onChange={e => setNewSession({...newSession, meal_type: e.target.value})}
-                         className="w-full rounded-2xl border-gray-100 bg-gray-50 font-bold h-14 px-5 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
-                       >
-                          <option value="breakfast">Breakfast</option>
-                          <option value="lunch">Lunch</option>
-                          <option value="dinner">Dinner</option>
-                       </select>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Meal Type</Label>
+                       <div className="relative group">
+                          <select 
+                            value={newSession.meal_type}
+                            onChange={e => updateLabel(e.target.value, newSession.branch_id)}
+                            className="w-full rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-[10px] h-16 px-6 outline-none focus:ring-4 focus:ring-blue-50 transition-all appearance-none cursor-pointer"
+                          >
+                             <option value="breakfast">Breakfast</option>
+                             <option value="lunch">Lunch</option>
+                             <option value="dinner">Dinner</option>
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                             <ChevronRight size={16} className="rotate-90" />
+                          </div>
+                       </div>
                     </div>
-                    <div className="space-y-2">
-                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Branch</Label>
-                       <select 
-                         value={newSession.branch_id}
-                         onChange={e => setNewSession({...newSession, branch_id: e.target.value})}
-                         className="w-full rounded-2xl border-gray-100 bg-gray-50 font-bold h-14 px-5 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
-                       >
-                          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                       </select>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Branch</Label>
+                       <div className="relative group">
+                          <select 
+                            value={newSession.branch_id}
+                            onChange={e => updateLabel(newSession.meal_type, e.target.value)}
+                            className="w-full rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-[10px] h-16 px-6 outline-none focus:ring-4 focus:ring-blue-50 transition-all appearance-none cursor-pointer"
+                          >
+                             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                             <ChevronRight size={16} className="rotate-90" />
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Scan Mode</Label>
+                       <div className="relative group">
+                          <select 
+                            value={newSession.scan_mode}
+                            onChange={e => setNewSession({...newSession, scan_mode: e.target.value as 'session' | 'member'})}
+                            className="w-full rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-[10px] h-16 px-6 outline-none focus:ring-4 focus:ring-blue-50 transition-all appearance-none cursor-pointer"
+                          >
+                             <option value="session">Fixed Terminal</option>
+                             <option value="member">Mobile Scan</option>
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                             <ChevronRight size={16} className="rotate-90" />
+                          </div>
+                       </div>
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Session Date</Label>
+                       <Input 
+                         type="date"
+                         value={newSession.session_date}
+                         onChange={e => setNewSession({...newSession, session_date: e.target.value})}
+                         className="rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-[10px] h-16 px-6 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all appearance-none"
+                         required
+                       />
                     </div>
                  </div>
 
@@ -260,9 +334,14 @@ export default function MobileAttendanceDashboard() {
                     <Button 
                       type="submit" 
                       disabled={isLoading}
-                      className="w-full h-16 rounded-[2rem] bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-500/20"
+                      className="w-full h-20 rounded-[2rem] bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-xs tracking-[0.2em] shadow-2xl shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
                     >
-                       {isLoading ? <Loader2 className="animate-spin" size={24} /> : 'Go Live Now'}
+                       {isLoading ? <Loader2 className="animate-spin" size={24} /> : (
+                         <>
+                           <PlayCircle size={24} />
+                           Go Live Now
+                         </>
+                       )}
                     </Button>
                  </div>
               </form>

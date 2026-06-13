@@ -15,7 +15,8 @@ import {
   History,
   ChefHat,
   Monitor,
-  LayoutGrid
+  LayoutGrid,
+  FileBarChart
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -31,9 +32,10 @@ export default function MobileHomePage() {
   const { user, isLoading: authLoading, isAuthorized } = useAuthGuard()
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
   const [loading, setLoading] = useState(true)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   
   useEffect(() => {
-    if (user && ['admin', 'manager'].includes(user.role)) {
+    if (user && user.role === 'manager') {
        fetch('/api/attendance/sessions')
          .then(res => res.json())
          .then(data => {
@@ -45,10 +47,11 @@ export default function MobileHomePage() {
     }
   }, [user])
 
-  if (authLoading) {
+  if (authLoading || isLoggingOut) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        {isLoggingOut && <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Signing Out...</p>}
       </div>
     )
   }
@@ -56,11 +59,11 @@ export default function MobileHomePage() {
   if (!isAuthorized || !user) return null
 
   const handleSignOut = async () => {
-    setIsLoading(true);
+    setIsLoggingOut(true);
     await signOut();
   };
 
-  const isManagerPlus = ['admin', 'manager'].includes(user.role)
+  const isManager = user.role === 'manager'
 
   return (
     <div className="p-6 space-y-8 animate-in slide-in-from-bottom-4 duration-500 pb-12">
@@ -75,7 +78,7 @@ export default function MobileHomePage() {
       </header>
 
       {/* ACTIVE SESSION HIGHLIGHT (Manager Only) */}
-      {isManagerPlus && activeSessions.length > 0 && (
+      {isManager && activeSessions.length > 0 && (
         <section className="space-y-4">
            <div className="flex items-center justify-between px-1">
               <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
@@ -107,86 +110,142 @@ export default function MobileHomePage() {
 
       {/* CORE NAVIGATION GRID */}
       <section className="space-y-4">
-        <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 px-1">System Modules</h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 px-1">
+           {isManager ? 'Operational Modules' : 'System Modules'}
+        </h3>
         <div className="grid grid-cols-1 gap-4">
-           <Link href="/m/my-qr" className="group">
-              <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
-                       <QrCode size={24} />
-                    </div>
-                    <div>
-                       <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Identity Badge</h4>
-                       <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Show to check-in</p>
-                    </div>
-                 </div>
-                 <ChevronRight size={18} className="text-gray-300" />
-              </div>
-           </Link>
+           {isManager ? (
+             <>
+               <Link href="/m/attendance/active" className="group">
+                  <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                           <Activity size={24} />
+                        </div>
+                        <div>
+                           <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Attendance Hub</h4>
+                           <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Sessions & Live QR</p>
+                        </div>
+                     </div>
+                     <ChevronRight size={18} className="text-gray-300" />
+                  </div>
+               </Link>
 
-           <Link href="/m/meal-requests" className="group">
-              <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
-                       <Utensils size={24} />
-                    </div>
-                    <div>
-                       <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Meal Booking</h4>
-                       <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Manage your requests</p>
-                    </div>
-                 </div>
-                 <ChevronRight size={18} className="text-gray-300" />
-              </div>
-           </Link>
+               <Link href="/m/meal-requests/dashboard" className="group">
+                  <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                           <LayoutGrid size={24} />
+                        </div>
+                        <div>
+                           <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Request Insights</h4>
+                           <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Booking Analytics</p>
+                        </div>
+                     </div>
+                     <ChevronRight size={18} className="text-gray-300" />
+                  </div>
+               </Link>
 
-           <Link href="/m/attendance/scan" className="group">
-              <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
-                       <Camera size={24} />
-                    </div>
-                    <div>
-                       <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Scan Terminal</h4>
-                       <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Mark attendance</p>
-                    </div>
-                 </div>
-                 <ChevronRight size={18} className="text-gray-300" />
-              </div>
-           </Link>
+               <Link href="/m/reports" className="group">
+                  <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                           <FileBarChart size={24} />
+                        </div>
+                        <div>
+                           <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Module Reports</h4>
+                           <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Export Summaries</p>
+                        </div>
+                     </div>
+                     <ChevronRight size={18} className="text-gray-300" />
+                  </div>
+               </Link>
+             </>
+           ) : (
+             <>
+               <Link href="/m/my-qr" className="group">
+                  <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                           <QrCode size={24} />
+                        </div>
+                        <div>
+                           <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Identity Badge</h4>
+                           <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Show to check-in</p>
+                        </div>
+                     </div>
+                     <ChevronRight size={18} className="text-gray-300" />
+                  </div>
+               </Link>
 
-           {isManagerPlus && (
-             <Link href="/m/meal-requests/dashboard" className="group">
-                <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
-                   <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-gray-900/10">
-                         <LayoutGrid size={24} />
-                      </div>
-                      <div>
-                         <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Management Hub</h4>
-                         <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Analytics & Reporting</p>
-                      </div>
-                   </div>
-                   <ChevronRight size={18} className="text-gray-300" />
-                </div>
-             </Link>
+               <Link href="/m/meal-requests" className="group">
+                  <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                           <Utensils size={24} />
+                        </div>
+                        <div>
+                           <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Meal Booking</h4>
+                           <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Manage your requests</p>
+                        </div>
+                     </div>
+                     <ChevronRight size={18} className="text-gray-300" />
+                  </div>
+               </Link>
+
+               <Link href="/m/attendance/scan" className="group">
+                  <div className="p-5 bg-white border border-gray-100 rounded-3xl active:scale-[0.98] transition-all shadow-sm flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
+                           <Camera size={24} />
+                        </div>
+                        <div>
+                           <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Scan Terminal</h4>
+                           <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Mark attendance</p>
+                        </div>
+                     </div>
+                     <ChevronRight size={18} className="text-gray-300" />
+                  </div>
+               </Link>
+             </>
            )}
         </div>
       </section>
 
-      {/* QUICK STATS / FOOTER */}
+      {/* SECONDARY UTILITIES (For Manager) or FOOTER (For Member) */}
       <div className="pt-4 flex flex-col gap-6">
+         {isManager && (
+            <section className="space-y-4">
+               <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 px-1">Utility & Tools</h3>
+               <div className="grid grid-cols-2 gap-4">
+                  <Link href="/m/attendance/scan" className="p-5 bg-white border border-gray-100 rounded-[2rem] flex flex-col items-center justify-center text-center gap-3 active:scale-95 transition-all shadow-sm">
+                     <div className="p-3 bg-gray-50 text-gray-400 rounded-2xl">
+                        <Camera size={24} />
+                     </div>
+                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-tighter">Admin Scanner</span>
+                  </Link>
+                  <Link href="/m/my-qr" className="p-5 bg-white border border-gray-100 rounded-[2rem] flex flex-col items-center justify-center text-center gap-3 active:scale-95 transition-all shadow-sm">
+                     <div className="p-3 bg-gray-50 text-gray-400 rounded-2xl">
+                        <QrCode size={24} />
+                     </div>
+                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-tighter">My Badge</span>
+                  </Link>
+               </div>
+            </section>
+         )}
+
          <div className="grid grid-cols-2 gap-4">
             <Link href="/m/meals" className="p-4 bg-slate-100 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
                <ChefHat size={20} className="text-slate-600" />
                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Meals Menu</span>
             </Link>
-            {!isManagerPlus && (
+            {!isManager && (
                <Link href="/m/attendance/history" className="p-4 bg-slate-100 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
                   <History size={20} className="text-slate-600" />
                   <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">My Logs</span>
                </Link>
             )}
-            {isManagerPlus && (
+            {isManager && (
                <Link href="/m/profile" className="p-4 bg-slate-100 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
                   <Monitor size={20} className="text-slate-600" />
                   <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Profile</span>

@@ -27,6 +27,44 @@ function getTokenError(reason: string): string {
   }
 }
 
+export async function GET(req: NextRequest) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!['admin', 'manager'].includes(currentUser.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get('sessionId');
+
+    if (!sessionId) {
+      return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .select(`
+        id, marked_at, method, user_id,
+        users ( full_name, avatar_url )
+      `)
+      .eq('session_id', sessionId)
+      .eq('tenant_id', currentUser.tenant_id)
+      .order('marked_at', { ascending: false });
+
+    if (error) throw error;
+
+    return NextResponse.json({ data });
+  } catch (error: any) {
+    console.error('[MARK_ATTENDANCE_GET]', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const currentUser = await getCurrentUser();
