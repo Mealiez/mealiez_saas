@@ -6,15 +6,21 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Determines the correct dashboard path based on screen width and native environment.
+ * Determines the correct dashboard path based on device characteristics.
+ * Supports both client-side (window) and server-side (User-Agent) detection.
  */
-export function getDashboardPath() {
-  if (typeof window === 'undefined') return '/dashboard';
+export function getDashboardPath(userAgent?: string) {
+  let isMobile = false;
 
-  const width = window.innerWidth;
-  const isMobile = width < 768 || 
-                   window.hasOwnProperty('Capacitor') || 
-                   navigator.userAgent.includes('Capacitor');
+  if (typeof window !== 'undefined') {
+    // Client-side detection
+    const width = window.innerWidth;
+    const isCapacitor = (window as any).Capacitor || navigator.userAgent.includes('Capacitor');
+    isMobile = width < 768 || isCapacitor;
+  } else if (userAgent) {
+    // Server-side detection (basic)
+    isMobile = /mobile/i.test(userAgent);
+  }
 
   return isMobile ? '/m/home' : '/dashboard';
 }

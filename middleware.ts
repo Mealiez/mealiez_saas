@@ -1,20 +1,30 @@
-import { type NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const userAgent = request.headers.get('user-agent') || ''
+  const isMobile = /mobile/i.test(userAgent)
+
+  // 1. Instant Redirection Logic (Optimized)
+  if (pathname === '/') {
+    const target = isMobile ? '/m/home' : '/dashboard'
+    return NextResponse.redirect(new URL(target, request.url))
+  }
+
+  // Enforcement for main entry points
+  if (isMobile && pathname === '/dashboard') {
+    return NextResponse.redirect(new URL('/m/home', request.url))
+  }
+  if (!isMobile && pathname === '/m/home') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
   // Always run updateSession.
-  // This refreshes expiring JWT tokens on every request.
-  //
-  // Route protection is NOT handled here.
-  // Protected routes: requireAuth() in (web)/layout.tsx
-  // Public routes:    no auth check in (auth)/layout.tsx
-  // Mobile routes:    useAuthGuard hook in each page
   const response = await updateSession(request)
 
-  // Forward pathname so server components (e.g. super/layout.tsx)
-  // can read the current route without importing next/navigation.
-  // Used to skip auth guard on /super/login (public entry point).
-  response.headers.set('x-pathname', request.nextUrl.pathname)
+  // Forward pathname for layout logic
+  response.headers.set('x-pathname', pathname)
 
   return response
 }
