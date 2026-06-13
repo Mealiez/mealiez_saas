@@ -11,7 +11,7 @@ interface LogEntry {
   id: string;
   marked_at: string;
   meal_type: string;
-  attendance_source: string;
+  method: string;
   user: {
     full_name: string;
     designation: { name: string } | null;
@@ -120,20 +120,20 @@ export default function AttendanceLogsContent({ initialLogs, branches }: Attenda
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant="outline" className="capitalize border-blue-100 text-blue-700 bg-blue-50/30">
-                      {log.meal_type}
+                      {(log as any).session?.meal_type || '-'}
                     </Badge>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-xs font-medium text-gray-600">
-                      {log.branch?.name || 'Global'}
+                      {(log as any).session?.branch?.name || 'Global'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <span className={cn(
                       "text-[10px] font-black uppercase tracking-tighter",
-                      log.attendance_source === 'automated' ? "text-indigo-600" : "text-amber-600"
+                      log.method === 'qr' ? "text-indigo-600" : "text-amber-600"
                     )}>
-                      {log.attendance_source}
+                      {log.method}
                     </span>
                   </td>
                 </tr>

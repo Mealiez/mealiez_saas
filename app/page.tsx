@@ -8,6 +8,7 @@ export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Determine target based on current device resolution/environment
     router.replace(getDashboardPath());
   }, [router]);
 

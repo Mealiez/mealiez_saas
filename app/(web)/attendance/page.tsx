@@ -13,6 +13,9 @@ import {
   QrCode
 } from 'lucide-react';
 import MemberAttendance from './MemberAttendance';
+import AttendanceStats from './AttendanceStats';
+
+export const dynamic = 'force-dynamic'
 
 /*
  * SERVER COMPONENT: Attendance Module Dashboard
@@ -30,25 +33,9 @@ export default async function AttendanceDashboard() {
   }
 
   const supabase = await createClient();
-  const today = new Date().toISOString().split('T')[0];
 
-  // 1. Fetch Today's Analytics
-  const { data: stats } = await supabase
-    .from('attendance_records')
-    .select('meal_type')
-    .eq('tenant_id', user.tenant_id)
-    .gte('marked_at', `${today}T00:00:00`)
-    .lte('marked_at', `${today}T23:59:59`);
-
-  const counts = {
-    total: stats?.length || 0,
-    breakfast: stats?.filter(r => r.meal_type === 'breakfast').length || 0,
-    lunch: stats?.filter(r => r.meal_type === 'lunch').length || 0,
-    dinner: stats?.filter(r => r.meal_type === 'dinner').length || 0,
-  };
-
-  // 2. Fetch Active Sessions
-  const { data: activeSessions } = await supabase
+  // 1. Fetch Active Sessions
+  const { data: activeSessions, error: sessionsError } = await supabase
     .from('attendance_sessions')
     .select(`
       id, label, meal_type, started_at,
@@ -57,6 +44,10 @@ export default async function AttendanceDashboard() {
     .eq('tenant_id', user.tenant_id)
     .eq('is_active', true)
     .order('started_at', { ascending: false });
+
+  if (sessionsError) {
+    console.error('[ACTIVE_SESSIONS_ERROR]', sessionsError);
+  }
 
   // ROLE-BASED GATING FOR QUICK LINKS
   const showManagementLinks = ['admin', 'manager'].includes(user.role);
@@ -83,34 +74,7 @@ export default async function AttendanceDashboard() {
       </div>
 
       {/* Analytics Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="rounded-3xl border-none shadow-sm bg-gray-900 text-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-black uppercase tracking-widest opacity-60">Total Today</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-black">{counts.total}</div>
-          </CardContent>
-        </Card>
-        
-        {[
-          { label: 'Breakfast', count: counts.breakfast, color: 'bg-amber-400' },
-          { label: 'Lunch', count: counts.lunch, color: 'bg-blue-500' },
-          { label: 'Dinner', count: counts.dinner, color: 'bg-indigo-600' }
-        ].map((item) => (
-          <Card key={item.label} className="rounded-3xl border-none shadow-sm bg-white border border-gray-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-gray-400">{item.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-black text-gray-900">{item.count}</div>
-              <div className="w-full bg-gray-50 h-1.5 rounded-full mt-3 overflow-hidden">
-                 <div className={cn("h-full", item.color)} style={{ width: `${(item.count / (counts.total || 1)) * 100}%` }} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <AttendanceStats />
 
       {/* Active Sessions List (Visible to all authorized, but usually only staff/admin need this) */}
       <div className="space-y-4">
