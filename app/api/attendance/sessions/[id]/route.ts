@@ -10,6 +10,7 @@ import { generateQRToken } from '@/lib/attendance/token';
  * Enforcing Node.js runtime for session modification and token logic.
  */
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET(
   _req: NextRequest,
@@ -31,26 +32,22 @@ export async function GET(
 
     const supabase = await createClient();
 
-    // STEP 3: Fetch session with attendance count
-    const { data: summary, error: rpcError } = await supabase
-      .rpc('get_session_attendance_summary', {
-        p_session_id: params.id
-      });
-
-    if (rpcError || !summary || summary.length === 0) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    }
-
-    // Fetch session directly to get details for token generation
+    // Fetch session directly to get definitive status and token data
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
-      .select('id, is_active, meal_type, session_date, tenant_id')
+      .select('id, label, is_active, meal_type, session_date, tenant_id, started_at, scan_mode, branch_id, branches(name)')
       .eq('id', params.id)
       .single();
 
     if (sessionError || !session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+
+    // STEP 3: Fetch attendance count via RPC for the summary
+    const { data: summary, error: rpcError } = await supabase
+      .rpc('get_session_attendance_summary', {
+        p_session_id: params.id
+      });
 
     const qr_token = session.is_active
       ? generateQRToken(
@@ -62,7 +59,10 @@ export async function GET(
       : null;
 
     return NextResponse.json({
-      session: summary[0],
+      session: {
+        ...session,
+        present_count: summary?.[0]?.present_count || 0
+      },
       qr_token,
       is_active: session.is_active
     });

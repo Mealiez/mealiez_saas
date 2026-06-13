@@ -26,10 +26,9 @@ const memberNav = [
 
 const managerNav = [
   { label: 'Home', href: '/m/home', icon: Home },
-  { label: 'Badge', href: '/m/my-qr', icon: QrCode },
-  { label: 'Scan', href: '/m/attendance/scan', icon: Camera },
+  { label: 'Attendance', href: '/m/attendance/active', icon: CheckCircle2 },
   { label: 'Requests', href: '/m/meal-requests/dashboard', icon: Utensils },
-  { label: 'Attendance', href: '/m/attendance/active', icon: CheckCircle2 }
+  { label: 'Reports', href: '/m/reports', icon: FileBarChart }
 ]
 
 export default function MobileBottomNav() {
@@ -40,7 +39,7 @@ export default function MobileBottomNav() {
     getClientUser().then(setUser)
   }, [])
 
-  const navItems = (user?.role === 'manager' || user?.role === 'admin') ? managerNav : memberNav
+  const navItems = user?.role === 'manager' ? managerNav : memberNav
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-t border-gray-100 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
