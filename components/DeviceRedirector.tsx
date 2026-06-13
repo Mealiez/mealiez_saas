@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { getClientUser } from '@/lib/auth/client-session';
 
 const PATH_MAP: Record<string, string> = {
   '/dashboard': '/m/home',
@@ -11,12 +12,6 @@ const PATH_MAP: Record<string, string> = {
   '/profile': '/m/profile',
   '/reports': '/m/reports',
 };
-
-// Create reverse map automatically
-const REVERSE_PATH_MAP: Record<string, string> = Object.entries(PATH_MAP).reduce(
-  (acc, [web, mobile]) => ({ ...acc, [mobile]: web }),
-  {}
-);
 
 export default function DeviceRedirector() {
   const router = useRouter();
@@ -30,7 +25,7 @@ export default function DeviceRedirector() {
   useEffect(() => {
     if (!isMounted || !pathname) return;
 
-    const checkDeviceAndRedirect = () => {
+    const checkRoleAndRedirect = async () => {
       // 1. Skip checks for auth flows
       const isAuthPath = pathname.includes('/login') || 
                          pathname.includes('/register') || 
@@ -39,35 +34,43 @@ export default function DeviceRedirector() {
       
       if (isAuthPath) return;
 
-      // 2. Detection (Resolution + Capacitor)
-      const width = window.innerWidth;
-      const isCapacitor = (window as any).Capacitor || 
-                         navigator.userAgent.includes('Capacitor') ||
-                         navigator.userAgent.includes('Mobile');
-      
-      const isMobileDevice = width < 768 || isCapacitor;
+      const user = await getClientUser();
+      if (!user) return;
+
+      const isMember = user.role === 'member';
       const isCurrentlyOnMobilePath = pathname.startsWith('/m');
 
-      // 3. Environment Enforcement with Path Preservation
-      // If Mobile device is on a Web path
-      if (isMobileDevice && !isCurrentlyOnMobilePath) {
+      // 2. MEMBER LOGIC: Always forced to Mobile paths
+      if (isMember && !isCurrentlyOnMobilePath) {
         const target = PATH_MAP[pathname] || '/m/home';
         router.replace(target);
-      } 
-      // If Desktop device is on a Mobile path
-      else if (!isMobileDevice && isCurrentlyOnMobilePath) {
-        const target = REVERSE_PATH_MAP[pathname] || '/dashboard';
-        router.replace(target);
+        return;
+      }
+
+      // 3. ADMIN/MANAGER LOGIC: Device-aware but flexible
+      if (!isMember) {
+        const width = window.innerWidth;
+        const isCapacitor = (window as any).Capacitor || navigator.userAgent.includes('Capacitor');
+        const isMobileDevice = width < 768 || isCapacitor;
+
+        // Only force Admin/Manager to Mobile if they are physically on a mobile device and on a Web path
+        if (isMobileDevice && !isCurrentlyOnMobilePath) {
+          const target = PATH_MAP[pathname] || '/m/home';
+          router.replace(target);
+        }
+        
+        // NOTE: We REMOVED the auto-redirect from Mobile paths back to Desktop for Admins.
+        // This allows them to use /m/ paths on Desktop for testing if they want.
       }
     };
 
-    // Run on path change and window resize
-    checkDeviceAndRedirect();
+    checkRoleAndRedirect();
 
+    // Re-check on resize for dynamic experience
     let resizeTimer: NodeJS.Timeout;
     const handleResize = () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(checkDeviceAndRedirect, 250);
+      resizeTimer = setTimeout(checkRoleAndRedirect, 500);
     };
 
     window.addEventListener('resize', handleResize);
