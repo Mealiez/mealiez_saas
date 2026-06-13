@@ -11,8 +11,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const startOfToday = todayDate.toISOString();
+    
+    todayDate.setHours(23, 59, 59, 999);
+    const endOfToday = todayDate.toISOString();
+
+    const todayStr = new Date().toISOString().split('T')[0];
     const supabase = await createClient();
-    const today = new Date().toISOString().split('T')[0];
 
     // 1. Get Attendance Stats
     const { data: records, error: attendanceError } = await supabase
@@ -25,22 +32,25 @@ export async function GET(req: NextRequest) {
         )
       `)
       .eq('tenant_id', user.tenant_id)
-      .gte('marked_at', `${today}T00:00:00Z`)
-      .lt('marked_at', `${today}T23:59:59Z`);
+      .gte('marked_at', startOfToday)
+      .lte('marked_at', endOfToday);
 
-    if (attendanceError) throw attendanceError;
+    if (attendanceError) {
+      console.error('[ATTENDANCE_FETCH_ERROR]', attendanceError);
+      throw attendanceError;
+    }
 
     // 2. Get Meal Request Stats
     const { data: requests, error: requestsError } = await supabase
       .from('meal_requests')
       .select('id, meal_type, status')
       .eq('tenant_id', user.tenant_id)
-      .eq('request_date', today);
+      .eq('request_date', todayStr);
 
     if (requestsError) throw requestsError;
 
     const summary = {
-      date: today,
+      date: todayStr,
       attendance: {
         total: records?.length || 0,
         breakfast: records?.filter(r => (r.session as any)?.meal_type === 'breakfast').length || 0,
