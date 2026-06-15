@@ -20,68 +20,72 @@ export function getMealSessionStatus(startTime: string, timezone: string = 'UTC'
     return { isClosed: true, timeLeft: '00:00:00', secondsLeft: 0 };
   }
 
-  // 1. Get current time in the target timezone
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-    hour12: false
-  });
+  try {
+    // 1. Get current time in the target timezone
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false,
+      hourCycle: 'h23'
+    });
 
-  const parts = formatter.formatToParts(now);
-  const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+    const parts = formatter.formatToParts(now);
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value;
 
-  const year = Number(getPart('year'));
-  const month = Number(getPart('month'));
-  const day = Number(getPart('day'));
-  let hour = Number(getPart('hour'));
-  const minute = Number(getPart('minute'));
-  const second = Number(getPart('second'));
+    const year = Number(getPart('year'));
+    const month = Number(getPart('month'));
+    const day = Number(getPart('day'));
+    let hour = Number(getPart('hour'));
+    const minute = Number(getPart('minute'));
+    const second = Number(getPart('second'));
 
-  // Handle "24" hour format which some environments return for midnight
-  if (hour === 24) hour = 0;
+    if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour)) {
+      throw new Error('Invalid date components');
+    }
 
-  // Create a Date object representing "now" in the target timezone components
-  const localNow = new Date(year, month - 1, day, hour, minute, second);
+    // 2. Parse session start time (HH:mm:ss or HH:mm)
+    const [sHour, sMin] = startTime.split(':').map(Number);
+    
+    if (isNaN(sHour)) {
+      return { isClosed: true, timeLeft: '00:00:00', secondsLeft: 0 };
+    }
 
-  // 2. Parse session start time
-  const timeParts = startTime.split(':').map(Number);
-  const sHour = timeParts[0];
-  const sMin = timeParts[1] || 0;
-  
-  if (isNaN(sHour)) {
+    // Create comparable numbers representing "now" and "deadline" in the target timezone
+    // Using a simple "minutes since midnight" or "seconds since midnight" is safer for same-day comparison
+    const nowSeconds = (hour * 3600) + (minute * 60) + second;
+    const deadlineSeconds = (sHour * 3600) + (sMin * 60);
+
+    const diffSec = deadlineSeconds - nowSeconds;
+
+    if (diffSec <= 0) {
+      return { isClosed: true, timeLeft: '00:00:00', secondsLeft: 0 };
+    }
+
+    const h = Math.floor(diffSec / 3600);
+    const m = Math.floor((diffSec % 3600) / 60);
+    const s = diffSec % 60;
+
+    const timeLeft = [
+      h.toString().padStart(2, '0'),
+      m.toString().padStart(2, '0'),
+      s.toString().padStart(2, '0')
+    ].join(':');
+
+    return {
+      isClosed: false,
+      timeLeft,
+      secondsLeft: diffSec
+    };
+  } catch (error) {
+    console.error('Error calculating meal session status:', error);
     return { isClosed: true, timeLeft: '00:00:00', secondsLeft: 0 };
   }
-
-  const sessionStart = new Date(year, month - 1, day, sHour, sMin, 0, 0);
-
-  const diffMs = sessionStart.getTime() - localNow.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-
-  if (diffSec <= 0) {
-    return { isClosed: true, timeLeft: '00:00:00', secondsLeft: 0 };
-  }
-
-  const h = Math.floor(diffSec / 3600);
-  const m = Math.floor((diffSec % 3600) / 60);
-  const s = diffSec % 60;
-
-  const timeLeft = [
-    h.toString().padStart(2, '0'),
-    m.toString().padStart(2, '0'),
-    s.toString().padStart(2, '0')
-  ].join(':');
-
-  return {
-    isClosed: false,
-    timeLeft,
-    secondsLeft: diffSec
-  };
 }
 
 /**
