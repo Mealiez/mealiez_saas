@@ -123,9 +123,34 @@ export default function MobileMealRequests() {
     }
   };
 
-  if (authLoading) return null;
+  const [today, setToday] = useState(new Date().toISOString().split('T')[0]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const updateToday = (tz: string) => {
+    try {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const parts = formatter.formatToParts(now);
+      const y = parts.find(p => p.type === 'year')?.value;
+      const m = parts.find(p => p.type === 'month')?.value;
+      const d = parts.find(p => p.type === 'day')?.value;
+      setToday(`${y}-${m}-${d}`);
+    } catch (e) {
+      console.error('Error updating today date:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (settings?.timezone) {
+      updateToday(settings.timezone);
+    }
+  }, [settings]);
+
+  if (authLoading) return null;
 
   const renderSlot = (date: string, type: string) => {
     const req = requests.find(r => r.session_date === date && r.meal_type === type);
