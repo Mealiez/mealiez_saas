@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import DeviceRedirector from "@/components/DeviceRedirector";
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({ 
   subsets: ["latin"], 
@@ -24,6 +25,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <DeviceRedirector />
         {children}
+        <Analytics />
       </body>
     </html>
   );
