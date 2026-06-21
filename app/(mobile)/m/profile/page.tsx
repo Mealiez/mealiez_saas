@@ -17,11 +17,16 @@ import {
   AlertCircle,
   KeyRound,
   ChevronLeft,
-  LogOut
+  LogOut,
+  Download,
+  Share,
+  PlusSquare,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { signOut } from '@/lib/auth/client-session';
+import { installManager } from '@/components/pwa/install-manager';
 
 export default function MobileProfilePage() {
   const supabase = createClient();
@@ -34,8 +39,55 @@ export default function MobileProfilePage() {
   const [personalInfo, setPersonalInfo] = useState({ full_name: '', phone: '', avatar_url: '' });
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
 
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showIosModal, setShowIosModal] = useState(false);
+  const [platform, setPlatform] = useState<any>('other');
+
+  useEffect(() => {
+    setIsInstalled(installManager.isInstalled());
+    setPlatform(installManager.getPlatform());
+
+    const unsubscribe = installManager.subscribe(() => {
+      setIsInstalled(installManager.isInstalled());
+      setPlatform(installManager.getPlatform());
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const handleManualInstall = async () => {
+    installManager.trackAnalytics('manual_install_clicked');
+    if (platform === 'ios') {
+      setShowIosModal(true);
+      installManager.trackAnalytics('ios_install_instructions_opened');
+    } else {
+      await installManager.triggerInstall();
+    }
+  };
+
   const fetchProfile = async () => {
     try {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      if (isOffline) {
+        if (typeof window !== 'undefined') {
+          const cachedUser = localStorage.getItem('mealiez_auth_user');
+          if (cachedUser) {
+            try {
+              const u = JSON.parse(cachedUser);
+              setUser(u);
+              setPersonalInfo({
+                full_name: u.full_name,
+                phone: u.phone || '',
+                avatar_url: u.avatar_url || ''
+              });
+              setIsLoading(false);
+              return;
+            } catch (e) {}
+          }
+        }
+      }
+
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return;
 
@@ -45,13 +97,46 @@ export default function MobileProfilePage() {
         .eq('auth_id', authUser.id)
         .single();
 
-      setUser({ ...profile, email: authUser.email });
+      const combinedUser = { ...profile, email: authUser.email };
+      setUser(combinedUser);
       setPersonalInfo({ 
         full_name: profile.full_name, 
         phone: profile.phone || '', 
         avatar_url: profile.avatar_url || '' 
       });
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mealiez_auth_user', JSON.stringify({
+          id: profile.id,
+          auth_id: authUser.id,
+          tenant_id: profile.tenant_id,
+          role: profile.role || 'member',
+          full_name: profile.full_name,
+          email: authUser.email!,
+          is_active: profile.is_active,
+          branch_id: profile.branch_id,
+          avatar_url: profile.avatar_url,
+          phone: profile.phone,
+          tenants: profile.tenants
+        }));
+      }
     } catch (err) {
+      console.error('[PROFILE_FETCH_ERROR]', err);
+      if (typeof window !== 'undefined') {
+        const cachedUser = localStorage.getItem('mealiez_auth_user');
+        if (cachedUser) {
+          try {
+            const u = JSON.parse(cachedUser);
+            setUser(u);
+            setPersonalInfo({
+              full_name: u.full_name,
+              phone: u.phone || '',
+              avatar_url: u.avatar_url || ''
+            });
+            return;
+          } catch (e) {}
+        }
+      }
       toast.error('Failed to load profile');
     } finally {
       setIsLoading(false);
@@ -65,6 +150,12 @@ export default function MobileProfilePage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (isOffline) {
+      toast.error('Offline: Cannot upload avatar');
+      return;
+    }
 
     setIsUploading(true);
     try {
@@ -89,6 +180,19 @@ export default function MobileProfilePage() {
       });
       
       setPersonalInfo(prev => ({ ...prev, avatar_url: publicUrl }));
+      
+      // Update cached user too
+      if (typeof window !== 'undefined') {
+        const cachedUser = localStorage.getItem('mealiez_auth_user');
+        if (cachedUser) {
+          try {
+            const parsed = JSON.parse(cachedUser);
+            parsed.avatar_url = publicUrl;
+            localStorage.setItem('mealiez_auth_user', JSON.stringify(parsed));
+          } catch (e) {}
+        }
+      }
+
       toast.success('Avatar updated!');
     } catch (err: any) {
       toast.error('Upload failed');
@@ -99,6 +203,13 @@ export default function MobileProfilePage() {
 
   const updatePersonalInfo = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (isOffline) {
+      toast.error('Offline: Cannot update profile info');
+      return;
+    }
+
     setIsSubmitting('personal');
     try {
       const res = await fetch('/api/profile', {
@@ -107,6 +218,20 @@ export default function MobileProfilePage() {
         body: JSON.stringify({ full_name: personalInfo.full_name, phone: personalInfo.phone })
       });
       if (!res.ok) throw new Error();
+
+      // Update cached user too
+      if (typeof window !== 'undefined') {
+        const cachedUser = localStorage.getItem('mealiez_auth_user');
+        if (cachedUser) {
+          try {
+            const parsed = JSON.parse(cachedUser);
+            parsed.full_name = personalInfo.full_name;
+            parsed.phone = personalInfo.phone;
+            localStorage.setItem('mealiez_auth_user', JSON.stringify(parsed));
+          } catch (e) {}
+        }
+      }
+
       toast.success('Profile updated');
     } catch (err) {
       toast.error('Failed to save');
@@ -213,6 +338,24 @@ export default function MobileProfilePage() {
               <p className="text-[8px] text-center text-gray-400 font-bold uppercase tracking-tight">Email and password can be changed on desktop for security.</p>
            </Card>
 
+           {!isInstalled && (
+             <Card className="rounded-[2rem] border-none shadow-sm bg-white p-6 animate-in fade-in duration-300">
+                <div className="flex items-center gap-2 mb-4">
+                   <Download className="text-blue-600 animate-pulse" size={18} />
+                   <h3 className="text-sm font-black uppercase tracking-widest text-gray-900">Application</h3>
+                </div>
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mb-4 leading-relaxed">
+                   Install Mealiez on your home screen for rapid access, live notifications, and offline support.
+                </p>
+                <Button 
+                  onClick={handleManualInstall}
+                  className="w-full rounded-xl bg-gray-900 text-white font-black uppercase text-[10px] tracking-widest h-12 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <Download size={14} /> Install App
+                </Button>
+             </Card>
+           )}
+
            <Button 
              onClick={handleLogout}
              variant="outline" 
@@ -222,6 +365,69 @@ export default function MobileProfilePage() {
            </Button>
         </div>
       </div>
+
+      {/* iOS Sharing Instruction Modal */}
+      {showIosModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div 
+            className="w-full max-w-sm bg-white rounded-[2.5rem] p-6 shadow-2xl space-y-6 pb-8 animate-in slide-in-from-bottom-10 duration-300 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setShowIosModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:bg-gray-50 active:scale-90 rounded-full p-1.5 transition-all"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="text-center space-y-2 pt-2">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mx-auto">
+                <Share size={24} className="animate-bounce" />
+              </div>
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Add to Home Screen</h3>
+              <p className="text-[10px] text-gray-500 font-bold px-4 uppercase tracking-wider">
+                Follow these simple steps to install Mealiez on your iOS device
+              </p>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
+                <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 font-black text-xs flex items-center justify-center shrink-0">
+                  1
+                </div>
+                <p className="text-xs text-gray-700 font-bold leading-relaxed">
+                  Tap the <span className="inline-flex items-center justify-center p-1 bg-white border border-gray-100 rounded-md mx-1 shadow-sm shrink-0"><Share size={12} className="text-blue-600" /></span> Share button in your Safari toolbar.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
+                <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 font-black text-xs flex items-center justify-center shrink-0">
+                  2
+                </div>
+                <p className="text-xs text-gray-700 font-bold leading-relaxed">
+                  Scroll down the share menu and select <span className="font-extrabold uppercase text-blue-600 tracking-tight flex items-center gap-1 inline-flex"><PlusSquare size={12} /> "Add to Home Screen"</span>.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
+                <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 font-black text-xs flex items-center justify-center shrink-0">
+                  3
+                </div>
+                <p className="text-xs text-gray-700 font-bold leading-relaxed">
+                  Tap <span className="font-extrabold uppercase text-blue-600 tracking-tight">"Add"</span> in the top-right corner to complete the installation.
+                </p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowIosModal(false)}
+              className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl active:scale-95 transition-all mt-4"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

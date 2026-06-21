@@ -28,6 +28,20 @@ export default function MyQRPage() {
     if (!isAuthorized) return
 
     async function fetchQR() {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        if (typeof window !== 'undefined') {
+          const cachedQR = localStorage.getItem('mealiez_member_qr');
+          if (cachedQR) {
+            try {
+              setQr(JSON.parse(cachedQR));
+              setLoadState('ready');
+              return;
+            } catch (e) {}
+          }
+        }
+      }
+
       try {
         const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()
@@ -43,8 +57,22 @@ export default function MyQRPage() {
         const data = await res.json()
         setQr(data)
         setLoadState('ready')
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('mealiez_member_qr', JSON.stringify(data));
+        }
       } catch (err) {
         console.error('[MY_QR_FETCH_ERROR]', err)
+        if (typeof window !== 'undefined') {
+          const cachedQR = localStorage.getItem('mealiez_member_qr');
+          if (cachedQR) {
+            try {
+              setQr(JSON.parse(cachedQR));
+              setLoadState('ready');
+              return;
+            } catch (e) {}
+          }
+        }
         setLoadState('error')
       }
     }

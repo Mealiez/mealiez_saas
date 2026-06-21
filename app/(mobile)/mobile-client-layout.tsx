@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getClientUser, type AuthUser, signOut, onAuthStateChange } from '@/lib/auth/client-session'
+import { getClientUser, type AuthUser, signOut, onAuthStateChange, getClientSession } from '@/lib/auth/client-session'
 import MobileBottomNav from '@/components/mobile/MobileBottomNav'
 import { Loader2, UserCircle, Monitor, LogOut } from 'lucide-react'
 import { useRouter, usePathname } from 'next/navigation'
@@ -16,10 +16,46 @@ export default function MobileClientLayout({
 }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isOnline, setIsOnline] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
 
   const isLoginPage = pathname === '/login'
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    setIsOnline(navigator.onLine)
+
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isOnline && pathname) {
+      const onlineOnlyPaths = [
+        '/m/attendance/scan',
+        '/m/attendance/active',
+        '/m/attendance/sessions',
+        '/m/meal-requests',
+        '/m/inventory/purchase',
+        '/m/reports'
+      ]
+
+      const isOnlineOnly = onlineOnlyPaths.some(p => pathname.startsWith(p))
+      if (isOnlineOnly) {
+        router.replace('/m/offline')
+      }
+    }
+  }, [isOnline, pathname, router])
 
   useEffect(() => {
     let isMounted = true
@@ -48,6 +84,68 @@ export default function MobileClientLayout({
       subscription.unsubscribe()
     }
   }, [router])
+
+  // Background pre-fetching when online
+  useEffect(() => {
+    if (user && isOnline) {
+      // 1. Fetch and cache attendance logs
+      fetch(`/api/users/${user.id}/attendance`)
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error();
+        })
+        .then(data => {
+          localStorage.setItem('mealiez_attendance_logs', JSON.stringify(data.data || []));
+        })
+        .catch(err => console.error('[PREFETCH_ATTENDANCE_ERROR]', err));
+
+      // 2. Fetch and cache meal requests (history)
+      fetch('/api/meal-requests')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error();
+        })
+        .then(data => {
+          localStorage.setItem('mealiez_meal_requests', JSON.stringify(data.data || []));
+        })
+        .catch(err => console.error('[PREFETCH_MEAL_REQUESTS_ERROR]', err));
+
+      // 3. Fetch and cache today's meals menu
+      fetch('/api/meals/today')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error();
+        })
+        .then(data => {
+          if (data.data) {
+            localStorage.setItem('mealiez_meals_today', JSON.stringify(data.data));
+            localStorage.setItem('mealiez_meals_today_date', data.date || new Date().toISOString().split('T')[0]);
+          }
+        })
+        .catch(err => console.error('[PREFETCH_MEALS_ERROR]', err));
+
+      // 4. Fetch and cache member QR badge (only for members)
+      if (user.role === 'member') {
+        getClientSession().then(session => {
+          if (session) {
+            fetch('/api/member-qr', {
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`
+              }
+            })
+            .then(res => {
+              if (res.ok) return res.json();
+              throw new Error();
+            })
+            .then(data => {
+              localStorage.setItem('mealiez_member_qr', JSON.stringify(data));
+            })
+            .catch(err => console.error('[PREFETCH_QR_ERROR]', err));
+          }
+        });
+      }
+    }
+  }, [user, isOnline]);
 
   const handleAdminLogout = async () => {
     await signOut()

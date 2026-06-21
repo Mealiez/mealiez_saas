@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { createClient } from '@/lib/supabase/client';
 import { MEAL_TYPE_LABELS } from '@/lib/validations/meals';
+import { toast } from 'sonner';
 
 type TodaysMealItem = {
   item_id: string;
@@ -38,16 +39,56 @@ export default function MobileMealsPage() {
   const fetchMeals = useCallback(async () => {
     setIsLoadingMeals(true);
     setMealsError(null);
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (isOffline) {
+      if (typeof window !== 'undefined') {
+        const cachedMeals = localStorage.getItem('mealiez_meals_today');
+        const cachedDate = localStorage.getItem('mealiez_meals_today_date');
+        if (cachedMeals) {
+          try {
+            setMeals(JSON.parse(cachedMeals));
+            setToday(cachedDate || new Date().toISOString().split('T')[0]);
+            setIsLoadingMeals(false);
+            return;
+          } catch (e) {}
+        }
+      }
+    }
+
     try {
       const res = await fetch('/api/meals/today');
       if (!res.ok) throw new Error('Failed to fetch meals');
       
       const result = await res.json();
-      setMeals(result.data || {});
-      setToday(result.date || new Date().toISOString().split('T')[0]);
+      const mealsData = result.data || {};
+      const mealsDate = result.date || new Date().toISOString().split('T')[0];
+      setMeals(mealsData);
+      setToday(mealsDate);
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mealiez_meals_today', JSON.stringify(mealsData));
+        localStorage.setItem('mealiez_meals_today_date', mealsDate);
+      }
     } catch (err: any) {
       console.error('[MOBILE_FETCH_MEALS_ERROR]', err);
-      setMealsError('Could not load meals. Please try again.');
+      if (typeof window !== 'undefined') {
+        const cachedMeals = localStorage.getItem('mealiez_meals_today');
+        const cachedDate = localStorage.getItem('mealiez_meals_today_date');
+        if (cachedMeals) {
+          try {
+            setMeals(JSON.parse(cachedMeals));
+            setToday(cachedDate || new Date().toISOString().split('T')[0]);
+            toast.info('Viewing cached menu (offline)');
+          } catch (e) {
+            setMealsError('Could not load meals. Please try again.');
+          }
+        } else {
+          setMealsError('Could not load meals. Please try again.');
+        }
+      } else {
+        setMealsError('Could not load meals. Please try again.');
+      }
     } finally {
       setIsLoadingMeals(false);
     }
