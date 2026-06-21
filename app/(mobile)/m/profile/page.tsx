@@ -36,6 +36,27 @@ export default function MobileProfilePage() {
 
   const fetchProfile = async () => {
     try {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      if (isOffline) {
+        if (typeof window !== 'undefined') {
+          const cachedUser = localStorage.getItem('mealiez_auth_user');
+          if (cachedUser) {
+            try {
+              const u = JSON.parse(cachedUser);
+              setUser(u);
+              setPersonalInfo({
+                full_name: u.full_name,
+                phone: u.phone || '',
+                avatar_url: u.avatar_url || ''
+              });
+              setIsLoading(false);
+              return;
+            } catch (e) {}
+          }
+        }
+      }
+
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return;
 
@@ -45,13 +66,46 @@ export default function MobileProfilePage() {
         .eq('auth_id', authUser.id)
         .single();
 
-      setUser({ ...profile, email: authUser.email });
+      const combinedUser = { ...profile, email: authUser.email };
+      setUser(combinedUser);
       setPersonalInfo({ 
         full_name: profile.full_name, 
         phone: profile.phone || '', 
         avatar_url: profile.avatar_url || '' 
       });
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mealiez_auth_user', JSON.stringify({
+          id: profile.id,
+          auth_id: authUser.id,
+          tenant_id: profile.tenant_id,
+          role: profile.role || 'member',
+          full_name: profile.full_name,
+          email: authUser.email!,
+          is_active: profile.is_active,
+          branch_id: profile.branch_id,
+          avatar_url: profile.avatar_url,
+          phone: profile.phone,
+          tenants: profile.tenants
+        }));
+      }
     } catch (err) {
+      console.error('[PROFILE_FETCH_ERROR]', err);
+      if (typeof window !== 'undefined') {
+        const cachedUser = localStorage.getItem('mealiez_auth_user');
+        if (cachedUser) {
+          try {
+            const u = JSON.parse(cachedUser);
+            setUser(u);
+            setPersonalInfo({
+              full_name: u.full_name,
+              phone: u.phone || '',
+              avatar_url: u.avatar_url || ''
+            });
+            return;
+          } catch (e) {}
+        }
+      }
       toast.error('Failed to load profile');
     } finally {
       setIsLoading(false);
@@ -65,6 +119,12 @@ export default function MobileProfilePage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (isOffline) {
+      toast.error('Offline: Cannot upload avatar');
+      return;
+    }
 
     setIsUploading(true);
     try {
@@ -89,6 +149,19 @@ export default function MobileProfilePage() {
       });
       
       setPersonalInfo(prev => ({ ...prev, avatar_url: publicUrl }));
+      
+      // Update cached user too
+      if (typeof window !== 'undefined') {
+        const cachedUser = localStorage.getItem('mealiez_auth_user');
+        if (cachedUser) {
+          try {
+            const parsed = JSON.parse(cachedUser);
+            parsed.avatar_url = publicUrl;
+            localStorage.setItem('mealiez_auth_user', JSON.stringify(parsed));
+          } catch (e) {}
+        }
+      }
+
       toast.success('Avatar updated!');
     } catch (err: any) {
       toast.error('Upload failed');
@@ -99,6 +172,13 @@ export default function MobileProfilePage() {
 
   const updatePersonalInfo = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (isOffline) {
+      toast.error('Offline: Cannot update profile info');
+      return;
+    }
+
     setIsSubmitting('personal');
     try {
       const res = await fetch('/api/profile', {
@@ -107,6 +187,20 @@ export default function MobileProfilePage() {
         body: JSON.stringify({ full_name: personalInfo.full_name, phone: personalInfo.phone })
       });
       if (!res.ok) throw new Error();
+
+      // Update cached user too
+      if (typeof window !== 'undefined') {
+        const cachedUser = localStorage.getItem('mealiez_auth_user');
+        if (cachedUser) {
+          try {
+            const parsed = JSON.parse(cachedUser);
+            parsed.full_name = personalInfo.full_name;
+            parsed.phone = personalInfo.phone;
+            localStorage.setItem('mealiez_auth_user', JSON.stringify(parsed));
+          } catch (e) {}
+        }
+      }
+
       toast.success('Profile updated');
     } catch (err) {
       toast.error('Failed to save');

@@ -37,20 +37,64 @@ export default function MobileAttendanceHistory() {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const resUser = await fetch('/api/auth/session');
-        if (!resUser.ok) throw new Error('Failed to get session');
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
         
-        const session = await resUser.json();
-        if (session.user) {
-          const resLogs = await fetch(`/api/users/${session.user.id}/attendance`);
-          if (!resLogs.ok) throw new Error('Failed to get logs');
-          
-          const data = await resLogs.json();
-          setLogs(data.data || []);
+        let userId = null;
+        if (typeof window !== 'undefined') {
+          const cachedUser = localStorage.getItem('mealiez_auth_user');
+          if (cachedUser) {
+            try {
+              userId = JSON.parse(cachedUser).id;
+            } catch (e) {}
+          }
+        }
+
+        if (!userId) {
+          const resUser = await fetch('/api/auth/session').catch(() => null);
+          if (resUser && resUser.ok) {
+            const session = await resUser.json();
+            userId = session.user?.id;
+          }
+        }
+
+        if (!userId) {
+          throw new Error('Failed to get user session');
+        }
+
+        if (isOffline) {
+          const cachedLogsStr = localStorage.getItem('mealiez_attendance_logs');
+          if (cachedLogsStr) {
+            setLogs(JSON.parse(cachedLogsStr));
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        const resLogs = await fetch(`/api/users/${userId}/attendance`);
+        if (!resLogs.ok) throw new Error('Failed to get logs');
+        
+        const data = await resLogs.json();
+        const logsData = data.data || [];
+        setLogs(logsData);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('mealiez_attendance_logs', JSON.stringify(logsData));
         }
       } catch (err) {
         console.error('[FETCH_LOGS_ERROR]', err);
-        toast.error('Failed to load history');
+        if (typeof window !== 'undefined') {
+          const cachedLogsStr = localStorage.getItem('mealiez_attendance_logs');
+          if (cachedLogsStr) {
+            try {
+              setLogs(JSON.parse(cachedLogsStr));
+            } catch (e) {
+              toast.error('Failed to load history');
+            }
+          } else {
+            toast.error('Failed to load history');
+          }
+        } else {
+          toast.error('Failed to load history');
+        }
       } finally {
         setIsLoading(false);
       }

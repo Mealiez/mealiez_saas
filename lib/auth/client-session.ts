@@ -26,30 +26,64 @@ export async function getClientSession() {
  * Assembles the full user profile with tenant context from browser storage and public.users.
  */
 export async function getClientUser(): Promise<AuthUser | null> {
-  const session = await getClientSession()
-  if (!session) return null
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-  const { user } = session
-  const tenant_id = user.app_metadata?.tenant_id as string | undefined
-  const role = user.app_metadata?.role as AuthUser['role'] | undefined
+  if (isOffline && typeof window !== 'undefined') {
+    const cachedUser = localStorage.getItem('mealiez_auth_user');
+    if (cachedUser) {
+      try {
+        return JSON.parse(cachedUser);
+      } catch (e) {
+        console.error('Error parsing cached user', e);
+      }
+    }
+  }
 
-  if (!tenant_id) return null
+  const session = await getClientSession().catch(() => null);
+  if (!session) {
+    if (typeof window !== 'undefined') {
+      const cachedUser = localStorage.getItem('mealiez_auth_user');
+      if (cachedUser) {
+        try {
+          return JSON.parse(cachedUser);
+        } catch (e) {}
+      }
+    }
+    return null;
+  }
 
-  const supabase = createClient()
+  const { user } = session;
+  const tenant_id = user.app_metadata?.tenant_id as string | undefined;
+  const role = user.app_metadata?.role as AuthUser['role'] | undefined;
+
+  if (!tenant_id) return null;
+
+  const supabase = createClient();
   const { data: profile, error } = await supabase
     .from('users')
     .select('id, full_name, is_active, role, branch_id, avatar_url')
     .eq('auth_id', user.id)
-    .single()
+    .single();
 
   if (error || !profile || profile.is_active === false) {
-    return null
+    if (typeof window !== 'undefined') {
+      const cachedUser = localStorage.getItem('mealiez_auth_user');
+      if (cachedUser) {
+        try {
+          const parsed = JSON.parse(cachedUser);
+          if (parsed.auth_id === user.id) {
+            return parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    return null;
   }
 
-  let finalRole = (profile.role || role || 'member') as string
-  if (finalRole === 'owner') finalRole = 'admin'
+  let finalRole = (profile.role || role || 'member') as string;
+  if (finalRole === 'owner') finalRole = 'admin';
 
-  return {
+  const authUser: AuthUser = {
     id: profile.id,
     auth_id: user.id,
     tenant_id,
@@ -59,7 +93,13 @@ export async function getClientUser(): Promise<AuthUser | null> {
     is_active: profile.is_active,
     branch_id: profile.branch_id,
     avatar_url: profile.avatar_url
+  };
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('mealiez_auth_user', JSON.stringify(authUser));
   }
+
+  return authUser;
 }
 
 /**
@@ -67,9 +107,18 @@ export async function getClientUser(): Promise<AuthUser | null> {
  * Clears browser session and signs out the user.
  */
 export async function signOut() {
-  const supabase = createClient()
-  const { error } = await supabase.auth.signOut()
-  return { error }
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('mealiez_auth_user');
+    localStorage.removeItem('mealiez_attendance_logs');
+    localStorage.removeItem('mealiez_meal_requests');
+    localStorage.removeItem('mealiez_meals_today');
+    localStorage.removeItem('mealiez_meals_today_date');
+    localStorage.removeItem('mealiez_member_qr');
+    localStorage.removeItem('mealiez_active_sessions');
+  }
+  const supabase = createClient();
+  const { error } = await supabase.auth.signOut();
+  return { error };
 }
 
 /**

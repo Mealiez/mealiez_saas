@@ -1,12 +1,17 @@
 // The CACHE_VERSION string is injected during the CI/CD build step 
 // (e.g., replacing 'development' with VERCEL_GIT_COMMIT_SHA)
-const CACHE_VERSION = '2026-06-21T07-27-44-728Z';
+const CACHE_VERSION = '2026-06-21T10-15-20-378Z';
 const CACHE_NAME = `mealiez-mobile-${CACHE_VERSION}`;
 const OFFLINE_URL = '/m/offline';
 
 const STATIC_ASSETS = [
   '/manifest.json',
   OFFLINE_URL,
+  '/m/home',
+  '/m/my-qr',
+  '/m/profile',
+  '/m/meals',
+  '/m/attendance/history',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png'
 ];
@@ -87,11 +92,40 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Mobile App Navigation - Network first -> Fallback to Offline UI
-  if (url.pathname.startsWith('/m/') && event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(OFFLINE_URL))
-    );
+  // 4. Navigation requests (e.g., page loads) - Network first -> Fallback to Cache or Offline UI
+  if (event.request.mode === 'navigate') {
+    const onlineOnlyPaths = [
+      '/m/attendance/scan',
+      '/m/attendance/active',
+      '/m/attendance/sessions',
+      '/m/meal-requests',
+      '/m/inventory/purchase',
+      '/m/reports'
+    ];
+
+    const isOnlineOnly = onlineOnlyPaths.some(p => url.pathname.startsWith(p));
+
+    if (isOnlineOnly) {
+      event.respondWith(
+        fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+      );
+    } else {
+      event.respondWith(
+        fetch(event.request)
+          .then((response) => {
+            if (response.ok) {
+              const responseClone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+            }
+            return response;
+          })
+          .catch(() => {
+            return caches.match(event.request).then((cachedResponse) => {
+              return cachedResponse || caches.match(OFFLINE_URL);
+            });
+          })
+      );
+    }
     return;
   }
 });
