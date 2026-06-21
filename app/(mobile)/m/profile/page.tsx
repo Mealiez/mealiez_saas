@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { signOut } from '@/lib/auth/client-session';
 import { installManager } from '@/components/pwa/install-manager';
+import { cn } from '@/lib/utils';
 
 export default function MobileProfilePage() {
   const supabase = createClient();
@@ -338,23 +339,27 @@ export default function MobileProfilePage() {
               <p className="text-[8px] text-center text-gray-400 font-bold uppercase tracking-tight">Email and password can be changed on desktop for security.</p>
            </Card>
 
-           {!isInstalled && (
-             <Card className="rounded-[2rem] border-none shadow-sm bg-white p-6 animate-in fade-in duration-300">
-                <div className="flex items-center gap-2 mb-4">
-                   <Download className="text-blue-600 animate-pulse" size={18} />
-                   <h3 className="text-sm font-black uppercase tracking-widest text-gray-900">Application</h3>
-                </div>
-                <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mb-4 leading-relaxed">
-                   Install Mealiez on your home screen for rapid access, live notifications, and offline support.
+           <Card className="rounded-[2rem] border-none shadow-sm bg-white p-6 animate-in fade-in duration-300">
+              <div className="flex items-center gap-2 mb-4">
+                 <Download className={cn("text-blue-600", !isInstalled && "animate-pulse")} size={18} />
+                 <h3 className="text-sm font-black uppercase tracking-widest text-gray-900">Application</h3>
+              </div>
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mb-4 leading-relaxed">
+                 Install Mealiez on your home screen for rapid access, live notifications, and offline support.
+              </p>
+              <Button 
+                onClick={handleManualInstall}
+                className="w-full rounded-xl bg-gray-900 text-white font-black uppercase text-[10px] tracking-widest h-12 flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <Download size={14} /> Install App
+              </Button>
+              {isInstalled && (
+                <p className="text-[9px] text-green-600 font-black uppercase tracking-wider text-center mt-3 flex items-center justify-center gap-1.5 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  PWA Installation Detected
                 </p>
-                <Button 
-                  onClick={handleManualInstall}
-                  className="w-full rounded-xl bg-gray-900 text-white font-black uppercase text-[10px] tracking-widest h-12 flex items-center justify-center gap-2 active:scale-95 transition-all"
-                >
-                  <Download size={14} /> Install App
-                </Button>
-             </Card>
-           )}
+              )}
+           </Card>
 
            <Button 
              onClick={handleLogout}
