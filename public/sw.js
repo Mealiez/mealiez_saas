@@ -1,6 +1,6 @@
 // The CACHE_VERSION string is injected during the CI/CD build step 
 // (e.g., replacing 'development' with VERCEL_GIT_COMMIT_SHA)
-const CACHE_VERSION = '2026-06-21T10-15-20-378Z';
+const CACHE_VERSION = '2026-06-21T10-24-42-011Z';
 const CACHE_NAME = `mealiez-mobile-${CACHE_VERSION}`;
 const OFFLINE_URL = '/m/offline';
 
@@ -113,9 +113,13 @@ self.addEventListener('fetch', (event) => {
       event.respondWith(
         fetch(event.request)
           .then((response) => {
-            if (response.ok) {
-              const responseClone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+            if (response.ok && !response.bodyUsed) {
+              try {
+                const responseClone = response.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+              } catch (err) {
+                console.warn('[SW] Failed to clone navigation response:', err);
+              }
             }
             return response;
           })
