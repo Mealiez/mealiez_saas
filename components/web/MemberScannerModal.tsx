@@ -26,6 +26,7 @@ export default function MemberScannerModal({ onSuccess, isInline }: MemberScanne
   const animFrameRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
 
+
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -46,7 +47,7 @@ export default function MemberScannerModal({ onSuccess, isInline }: MemberScanne
       const res = await fetch('/api/attendance/mark', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
+        body: JSON.stringify({ session_token: token })
       });
 
       const data = await res.json();
@@ -93,7 +94,9 @@ export default function MemberScannerModal({ onSuccess, isInline }: MemberScanne
   const startCamera = useCallback(async () => {
     setError(null);
     setResult(null);
+
     try {
+      // Request Camera Permission
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' }
       });
@@ -158,7 +161,10 @@ export default function MemberScannerModal({ onSuccess, isInline }: MemberScanne
               <p className="text-sm font-medium text-gray-500">{result.message}</p>
             </div>
             <Button 
-              onClick={() => { setResult(null); startCamera(); }}
+              onClick={() => { 
+                setResult(null); 
+                startCamera(); 
+              }}
               className="w-full bg-gray-900 hover:bg-black text-white rounded-2xl h-14 font-black uppercase tracking-widest"
             >
               Scan Again
@@ -178,7 +184,10 @@ export default function MemberScannerModal({ onSuccess, isInline }: MemberScanne
               <p className="text-sm font-bold text-red-700/70">{error}</p>
             </div>
             <Button 
-              onClick={startCamera}
+              onClick={() => { 
+                setError(null);
+                startCamera(); 
+              }}
               className="w-full bg-red-600 hover:bg-red-700 text-white rounded-2xl h-14 font-black uppercase tracking-widest"
             >
               Try Again
@@ -273,7 +282,11 @@ export default function MemberScannerModal({ onSuccess, isInline }: MemberScanne
                     <p className="text-sm font-bold text-red-700/70">{error}</p>
                   </div>
                   <Button 
-                    onClick={startCamera}
+                    onClick={() => { 
+                      setError(null);
+
+                      startCamera(); 
+                    }}
                     className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl py-6 text-sm font-black uppercase tracking-widest"
                   >
                     Try Again

@@ -69,7 +69,7 @@ export default function AttendanceLog({
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-200">
-        {data.records.length === 0 ? (
+        {(!data.records || data.records.length === 0) ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 py-12 text-center space-y-2">
             <svg className="w-12 h-12 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />

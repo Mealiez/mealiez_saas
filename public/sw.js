@@ -1,6 +1,6 @@
 // The CACHE_VERSION string is injected during the CI/CD build step 
 // (e.g., replacing 'development' with VERCEL_GIT_COMMIT_SHA)
-const CACHE_VERSION = '2026-06-21T10-24-42-011Z';
+const CACHE_VERSION = '2026-09-30T14-18-24-833Z';
 const CACHE_NAME = `mealiez-mobile-${CACHE_VERSION}`;
 const OFFLINE_URL = '/m/offline';
 

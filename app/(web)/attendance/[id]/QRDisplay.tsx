@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import QRCode from 'qrcode';
 import AdminScanner from './AdminScanner';
 
@@ -39,6 +39,70 @@ export default function QRDisplay({
   const [isExpired, setIsExpired] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isUpdatingMode, setIsUpdatingMode] = useState(false);
+
+  // --- Intelligent Location Fetching Logic ---
+  const INTERVALS = [30000, 40000, 60000, 90000, 120000, 180000, 240000, 300000];
+  const DISTANCE_THRESHOLD = 15;
+
+  const getDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI/180;
+    const p2 = lat2 * Math.PI/180;
+    const dp = (lat2-lat1) * Math.PI/180;
+    const dl = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  }, []);
+
+  const intervalIndexRef = useRef(0);
+  const lastLocRef = useRef<{lat: number, lon: number} | null>(null);
+  const locationTimeoutRef = useRef<any>(null);
+
+  const syncLocation = useCallback(async () => {
+    if (!navigator.geolocation) return;
+    
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      });
+      
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const acc = pos.coords.accuracy;
+
+      if (lastLocRef.current) {
+        const dist = getDistance(lastLocRef.current.lat, lastLocRef.current.lon, lat, lon);
+        if (dist < DISTANCE_THRESHOLD) {
+          intervalIndexRef.current = Math.min(intervalIndexRef.current + 1, INTERVALS.length - 1);
+        } else {
+          intervalIndexRef.current = 0;
+        }
+      }
+      
+      lastLocRef.current = { lat, lon };
+
+      await fetch(`/api/attendance/sessions/${session.id}/location`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: lat, longitude: lon, accuracy: acc })
+      }).catch(() => {});
+    } catch (err) {
+      console.warn('[ADMIN_GPS_SYNC_ERROR]', err);
+    }
+
+    locationTimeoutRef.current = setTimeout(syncLocation, INTERVALS[intervalIndexRef.current]);
+  }, [session.id, getDistance]);
+
+  useEffect(() => {
+    if (isActive && activeScanMode === 'session') {
+      intervalIndexRef.current = 0;
+      syncLocation();
+    }
+    return () => {
+      if (locationTimeoutRef.current) clearTimeout(locationTimeoutRef.current);
+    };
+  }, [isActive, activeScanMode, syncLocation]);
+  // -------------------------------------------
 
   // Sync state if prop changes (e.g. from server refresh)
   useEffect(() => {

@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
-      .select('id, is_active, label, branch_id, attendance_mode, project_name')
+      .select('id, is_active, label, branch_id, attendance_mode, project_name, admin_latitude, admin_longitude, admin_accuracy, admin_location_updated_at')
       .eq('id', result.payload.session_id)
       .eq('tenant_id', currentUser.tenant_id)
       .single();
@@ -138,21 +138,23 @@ export async function POST(req: NextRequest) {
     let location_source = null;
 
     if (session.attendance_mode === 'CHANNEL') {
-      const { latitude, longitude, accuracy, location_timestamp } = validated.data;
+      const { admin_latitude: latitude, admin_longitude: longitude, admin_accuracy: accuracy, admin_location_updated_at } = session;
       
       if (!latitude || !longitude) {
         return NextResponse.json(
-          { error: 'Location coordinates required for channel-based attendance.', code: 'LOCATION_UNAVAILABLE' },
+          { error: 'Admin has not synced the session location yet. Please ask the admin to leave the QR page open for a moment.', code: 'LOCATION_UNAVAILABLE' },
           { status: 400 }
         );
       }
 
       if (accuracy && accuracy > 150) {
         return NextResponse.json(
-          { error: 'Your location accuracy is too low. Please move to an open area and try again.', code: 'LOW_ACCURACY' },
+          { error: 'Admin location accuracy is too low. Please ask admin to move to an open area.', code: 'LOW_ACCURACY' },
           { status: 400 }
         );
       }
+      
+      const location_timestamp = admin_location_updated_at ? new Date(admin_location_updated_at).getTime() : Date.now();
 
       // Fetch user's assigned channel
       const { data: userRecord } = await supabase
@@ -212,10 +214,10 @@ export async function POST(req: NextRequest) {
     };
 
     if (session.attendance_mode === 'CHANNEL') {
-        insertPayload.latitude = validated.data.latitude;
-        insertPayload.longitude = validated.data.longitude;
-        insertPayload.gps_accuracy = validated.data.accuracy;
-        insertPayload.location_timestamp = validated.data.location_timestamp ? new Date(validated.data.location_timestamp).toISOString() : new Date().toISOString();
+        insertPayload.latitude = session.admin_latitude;
+        insertPayload.longitude = session.admin_longitude;
+        insertPayload.gps_accuracy = session.admin_accuracy;
+        insertPayload.location_timestamp = session.admin_location_updated_at ? new Date(session.admin_location_updated_at).toISOString() : new Date().toISOString();
         insertPayload.assigned_channel_id = assigned_channel_id;
         insertPayload.detected_channel_id = detected_channel_id;
         insertPayload.location_source = location_source;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MyQRModal from '@/components/web/MyQRModal';
 import MemberScannerModal from '@/components/web/MemberScannerModal';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,6 +22,10 @@ interface MemberAttendanceProps {
 
 export default function MemberAttendance({ user }: MemberAttendanceProps) {
   const [activeTab, setActiveTab] = useState<'badge' | 'scan'>('badge');
+
+  useEffect(() => {
+    // Component mounted
+  }, []);
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -45,7 +49,9 @@ export default function MemberAttendance({ user }: MemberAttendanceProps) {
              My Badge
            </button>
            <button 
-             onClick={() => setActiveTab('scan')}
+             onClick={() => {
+               setActiveTab('scan');
+             }}
              className={cn(
                "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
                activeTab === 'scan' ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"

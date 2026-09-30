@@ -61,7 +61,8 @@ export async function GET(
     return NextResponse.json({
       session: {
         ...session,
-        present_count: summary?.[0]?.present_count || 0
+        total_count: summary?.[0]?.total_count || 0,
+        records: summary?.[0]?.records || []
       },
       qr_token,
       is_active: session.is_active
