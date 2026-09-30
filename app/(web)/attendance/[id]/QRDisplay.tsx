@@ -16,6 +16,7 @@ interface QRDisplayProps {
   session: {
     id: string;
     scan_mode: 'session' | 'member';
+    attendance_mode?: string;
   };
   initialToken: string | null;
   isActive: boolean;
@@ -39,6 +40,7 @@ export default function QRDisplay({
   const [isExpired, setIsExpired] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isUpdatingMode, setIsUpdatingMode] = useState(false);
+  const [liveChannelName, setLiveChannelName] = useState<string | null>(null);
 
   // --- Intelligent Location Fetching Logic ---
   const INTERVALS = [30000, 40000, 60000, 90000, 120000, 180000, 240000, 300000];
@@ -81,11 +83,20 @@ export default function QRDisplay({
       
       lastLocRef.current = { lat, lon };
 
-      await fetch(`/api/attendance/sessions/${session.id}/location`, {
+      const res = await fetch(`/api/attendance/sessions/${session.id}/location`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ latitude: lat, longitude: lon, accuracy: acc })
-      }).catch(() => {});
+      }).catch(() => null);
+
+      if (res && res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.detectedChannelName) {
+          setLiveChannelName(data.detectedChannelName);
+        } else {
+          setLiveChannelName('Unmapped Area');
+        }
+      }
     } catch (err) {
       console.warn('[ADMIN_GPS_SYNC_ERROR]', err);
     }
@@ -94,14 +105,14 @@ export default function QRDisplay({
   }, [session.id, getDistance]);
 
   useEffect(() => {
-    if (isActive && activeScanMode === 'session') {
+    if (isActive && activeScanMode === 'session' && session.attendance_mode === 'CHANNEL') {
       intervalIndexRef.current = 0;
       syncLocation();
     }
     return () => {
       if (locationTimeoutRef.current) clearTimeout(locationTimeoutRef.current);
     };
-  }, [isActive, activeScanMode, syncLocation]);
+  }, [isActive, activeScanMode, syncLocation, session.attendance_mode]);
   // -------------------------------------------
 
   // Sync state if prop changes (e.g. from server refresh)
@@ -253,6 +264,16 @@ export default function QRDisplay({
 
       {activeScanMode === 'session' ? (
         <div className="flex flex-col items-center space-y-8 w-full">
+          {session.attendance_mode === 'CHANNEL' && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-700 text-sm font-bold shadow-sm animate-in fade-in zoom-in">
+              <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>{liveChannelName ? `Live Channel: ${liveChannelName}` : 'Locating Admin...'}</span>
+            </div>
+          )}
+          
           <div className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl blur opacity-25 transition duration-1000 group-hover:opacity-50"></div>
             <div className="relative bg-white p-4 rounded-2xl border border-gray-100 shadow-inner overflow-hidden">

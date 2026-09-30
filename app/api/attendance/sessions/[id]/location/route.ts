@@ -27,7 +27,7 @@ export async function PATCH(
     // Verify session belongs to tenant
     const { data: session, error: verifyError } = await supabase
       .from('attendance_sessions')
-      .select('id, tenant_id')
+      .select('id, tenant_id, project_name')
       .eq('id', params.id)
       .eq('tenant_id', currentUser.tenant_id)
       .single();
@@ -51,7 +51,28 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update location' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    // Detect current channel
+    const { data: detectedChannelId } = await supabase.rpc('detect_channel', {
+      p_tenant_id: currentUser.tenant_id,
+      p_project_name: session.project_name || null,
+      p_latitude: latitude,
+      p_longitude: longitude,
+      p_accuracy: accuracy || 0
+    });
+    
+    let detectedChannelName = null;
+    if (detectedChannelId) {
+      const { data: channelData } = await supabase
+        .from('channels')
+        .select('name')
+        .eq('id', detectedChannelId)
+        .single();
+      if (channelData) {
+        detectedChannelName = channelData.name;
+      }
+    }
+
+    return NextResponse.json({ success: true, detectedChannelName });
   } catch (err: any) {
     console.error('[LOCATION_SYNC_ERROR]', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
