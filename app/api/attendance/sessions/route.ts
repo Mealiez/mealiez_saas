@@ -139,6 +139,8 @@ export async function POST(req: NextRequest) {
         meal_type: validated.data.meal_type,
         label: validated.data.label,
         scan_mode: validated.data.scan_mode,
+        attendance_mode: validated.data.attendance_mode,
+        project_name: validated.data.project_name ?? null,
         is_active: true,
         started_by: currentUser.id,
       })
