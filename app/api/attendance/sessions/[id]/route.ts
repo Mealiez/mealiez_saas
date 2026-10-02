@@ -35,7 +35,7 @@ export async function GET(
     // Fetch session directly to get definitive status and token data
     const { data: session, error: sessionError } = await supabase
       .from('attendance_sessions')
-      .select('id, label, is_active, meal_type, session_date, tenant_id, started_at, scan_mode, branch_id, branches(name)')
+      .select('id, label, is_active, meal_type, session_date, tenant_id, started_at, scan_mode, branch_id, attendance_mode, project_name, branches(name)')
       .eq('id', params.id)
       .single();
 

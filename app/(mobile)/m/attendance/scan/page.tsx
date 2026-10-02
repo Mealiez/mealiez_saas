@@ -25,7 +25,8 @@ type ScanState =
   | 'processing' 
   | 'success' 
   | 'error' 
-  | 'already_marked';
+  | 'already_marked'
+  | 'warning';
 
 type ScanResult = {
   success: boolean;
@@ -256,7 +257,7 @@ export default function ScanAttendancePage() {
         {scanState === 'processing' && (
           <div className="text-center animate-in fade-in">
             <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-white">Marking Attendance...</h2>
+            <h2 className="text-lg font-bold text-white px-4">Validating Location & Attendance...</h2>
           </div>
         )}
 
@@ -300,7 +301,25 @@ export default function ScanAttendancePage() {
         )}
 
         {/* ERROR STATE */}
-        {scanState === 'error' && (
+              {scanState === 'warning' && (
+        <div className="flex flex-col items-center justify-center p-6 space-y-6 animate-in slide-in-from-bottom-4">
+          <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center shadow-lg border border-amber-200">
+            <Info className="w-12 h-12 text-amber-500" />
+          </div>
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-black text-amber-600 uppercase tracking-tight">Flagged for Review</h2>
+            <p className="text-gray-500 font-medium px-4">{errorMessage}</p>
+          </div>
+          <Button 
+            onClick={resetScanner} 
+            className="mt-8 w-full h-14 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-amber-500/20"
+          >
+            Scan Next
+          </Button>
+        </div>
+      )}
+
+      {scanState === 'error' && (
           <div className="bg-white rounded-[2rem] p-8 w-full max-w-sm text-center space-y-6 animate-in zoom-in">
             <div className="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
               <XCircle className="w-10 h-10 text-red-600" />
