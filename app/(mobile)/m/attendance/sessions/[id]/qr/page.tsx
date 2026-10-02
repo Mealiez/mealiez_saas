@@ -1,11 +1,27 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useRouter, useParams } from 'next/navigation';
 import { ChevronLeft, Loader2, RefreshCcw, Maximize, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+
+// --- Haversine Distance Helper ---
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3;
+  const p1 = lat1 * Math.PI / 180;
+  const p2 = lat2 * Math.PI / 180;
+  const dp = (lat2 - lat1) * Math.PI / 180;
+  const dl = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(dp / 2) * Math.sin(dp / 2) +
+            Math.cos(p1) * Math.cos(p2) *
+            Math.sin(dl / 2) * Math.sin(dl / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 
 export default function FullScreenQRPage() {
   const router = useRouter();
@@ -15,6 +31,71 @@ export default function FullScreenQRPage() {
   const [sessionLabel, setSessionLabel] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
+  const [attendanceMode, setAttendanceMode] = useState('');
+  const [liveChannelName, setLiveChannelName] = useState<string | null>(null);
+
+  // --- Intelligent Location Fetching Logic ---
+  const INTERVALS = [30000, 40000, 60000, 90000, 120000, 180000, 240000, 300000];
+  const DISTANCE_THRESHOLD = 5;
+  const intervalIndexRef = useRef(0);
+  const lastLocRef = useRef<{lat: number, lon: number} | null>(null);
+  const locationTimeoutRef = useRef<any>(null);
+
+  const syncLocation = useCallback(async () => {
+    if (!navigator.geolocation) return;
+    
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      });
+      
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const acc = pos.coords.accuracy;
+
+      if (lastLocRef.current) {
+        const dist = getDistance(lastLocRef.current.lat, lastLocRef.current.lon, lat, lon);
+        if (dist < DISTANCE_THRESHOLD) {
+          intervalIndexRef.current = Math.min(intervalIndexRef.current + 1, INTERVALS.length - 1);
+        } else {
+          intervalIndexRef.current = 0;
+        }
+      }
+      
+      lastLocRef.current = { lat, lon };
+
+      const res = await fetch(`/api/attendance/sessions/${sessionId}/location`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: lat, longitude: lon, accuracy: acc })
+      }).catch(() => null);
+
+      if (res && res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.detectedChannelName) {
+          setLiveChannelName(data.detectedChannelName);
+        } else {
+          setLiveChannelName('Unmapped Area');
+        }
+      }
+    } catch (err) {
+      console.warn('[ADMIN_GPS_SYNC_ERROR]', err);
+    }
+
+    locationTimeoutRef.current = setTimeout(syncLocation, INTERVALS[intervalIndexRef.current]);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (attendanceMode === 'CHANNEL') {
+      intervalIndexRef.current = 0;
+      syncLocation();
+    }
+    return () => {
+      if (locationTimeoutRef.current) clearTimeout(locationTimeoutRef.current);
+    };
+  }, [attendanceMode, syncLocation]);
+
+
   const fetchToken = async () => {
     try {
       const res = await fetch(`/api/attendance/sessions/${sessionId}`);
@@ -22,6 +103,7 @@ export default function FullScreenQRPage() {
       if (data.qr_token) {
         setQrToken(data.qr_token);
         setSessionLabel(data.session?.label || 'Attendance Session');
+        setAttendanceMode(data.session?.attendance_mode || 'BRANCH');
       } else {
         toast.error('Session is not active or token unavailable');
         router.back();
@@ -70,6 +152,15 @@ export default function FullScreenQRPage() {
       {/* Main QR Frame */}
       <div className="w-full max-w-sm space-y-12 text-center relative z-10">
          <div className="space-y-3">
+                        {attendanceMode === 'CHANNEL' && (
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-full border border-indigo-100 mb-2 mt-2">
+                 <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                 <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-600">
+                   {liveChannelName ? `Live: ${liveChannelName}` : 'Locating...'}
+                 </span>
+              </div>
+            )}
+            <br />
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 rounded-full border border-green-100 mb-2">
                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-green-600">Session Live</span>

@@ -37,6 +37,8 @@ interface SessionDetails {
   scan_mode: 'session' | 'member';
   present_count: number;
   branches: { name: string } | null;
+  attendance_mode: string;
+  project_name: string | null;
 }
 
 interface AttendanceRecord {
@@ -287,7 +289,11 @@ export default function MobileSessionReportPage() {
               <div>
                  <h2 className="text-lg font-bold tracking-tight">{session.label}</h2>
                  <div className="flex gap-4 mt-2 text-[10px] text-gray-500 font-medium">
-                    <div className="flex items-center gap-1.5"><MapPin size={12} /> {session.branches?.name || 'Global'}</div>
+                    {session.attendance_mode === 'CHANNEL' ? (
+                        <div className="flex items-center gap-1.5"><MapPin size={12} /> {session.project_name || 'Channel'}</div>
+                     ) : (
+                        <div className="flex items-center gap-1.5"><MapPin size={12} /> {session.branches?.name || 'Global'}</div>
+                     )}
                     <div className="flex items-center gap-1.5"><Clock size={12} /> {new Date(session.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                  </div>
               </div>

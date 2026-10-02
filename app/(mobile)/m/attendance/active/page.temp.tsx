@@ -45,9 +45,7 @@ export default function MobileAttendanceDashboard() {
     meal_type: 'lunch',
     branch_id: '',
     session_date: new Date().toISOString().split('T')[0],
-    scan_mode: 'session' as 'session' | 'member',
-    attendance_mode: 'BRANCH' as 'BRANCH' | 'CHANNEL',
-    project_name: ''
+    scan_mode: 'session' as 'session' | 'member'
   });
   const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
 
@@ -113,7 +111,7 @@ export default function MobileAttendanceDashboard() {
       const res = await fetch('/api/attendance/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newSession, branch_id: newSession.attendance_mode === 'BRANCH' ? newSession.branch_id : null, project_name: newSession.attendance_mode === 'CHANNEL' ? newSession.project_name : null })
+        body: JSON.stringify(newSession)
       });
 
       if (!res.ok) throw new Error('Failed to create');
@@ -143,7 +141,7 @@ export default function MobileAttendanceDashboard() {
       ...prev,
       meal_type: meal,
       branch_id: branchId,
-      label: prev.attendance_mode === 'CHANNEL' ? `Live ${meal.toUpperCase()} - Channel` : `Live ${meal.toUpperCase()} - ${branchName}`
+      label: `Live ${meal.toUpperCase()} - ${branchName}`
     }));
   };
 
@@ -268,73 +266,40 @@ export default function MobileAttendanceDashboard() {
                     />
                  </div>
 
-                 <div className="space-y-4">
-                     <div className="space-y-3">
-                        <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Meal Type</Label>
-                        <div className="relative group">
-                           <select 
-                             value={newSession.meal_type}
-                             onChange={e => updateLabel(e.target.value, newSession.branch_id)}
-                             className="w-full rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-[10px] h-16 px-6 outline-none focus:ring-4 focus:ring-blue-50 transition-all appearance-none cursor-pointer"
-                           >
-                              <option value="breakfast">Breakfast</option>
-                              <option value="lunch">Lunch</option>
-                              <option value="dinner">Dinner</option>
-                           </select>
-                           <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                              <ChevronRight size={16} className="rotate-90" />
-                           </div>
-                        </div>
-                     </div>
-                     <div className="col-span-2 space-y-3">
-                        <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Location Mode</Label>
-                        <div className="grid grid-cols-2 gap-4">
-                           <button
-                             type="button"
-                             onClick={() => setNewSession(prev => ({...prev, attendance_mode: 'BRANCH'}))}
-                             className={`flex items-center justify-center gap-2 h-14 rounded-2xl border-2 transition-all ${newSession.attendance_mode === 'BRANCH' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-500'}`}
-                           >
-                             <MapPin size={16} />
-                             <span className="text-[10px] font-black uppercase tracking-widest">Branch</span>
-                           </button>
-                           <button
-                             type="button"
-                             onClick={() => setNewSession(prev => ({...prev, attendance_mode: 'CHANNEL'}))}
-                             className={`flex items-center justify-center gap-2 h-14 rounded-2xl border-2 transition-all ${newSession.attendance_mode === 'CHANNEL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-500'}`}
-                           >
-                             <Activity size={16} />
-                             <span className="text-[10px] font-black uppercase tracking-widest">Channel</span>
-                           </button>
-                        </div>
-                     </div>
-                     {newSession.attendance_mode === 'BRANCH' ? (
-                     <div className="space-y-3">
-                        <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Branch</Label>
-                        <div className="relative group">
-                           <select 
-                             value={newSession.branch_id}
-                             onChange={e => updateLabel(newSession.meal_type, e.target.value)}
-                             className="w-full rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-[10px] h-16 px-6 outline-none focus:ring-4 focus:ring-blue-50 transition-all appearance-none cursor-pointer"
-                           >
-                              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                           </select>
-                           <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                              <ChevronRight size={16} className="rotate-90" />
-                           </div>
-                        </div>
-                     </div>
-                     ) : (
-                     <div className="col-span-2 space-y-3">
-                        <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Project Name (Optional)</Label>
-                        <Input 
-                          placeholder="e.g. Project Alpha"
-                          value={newSession.project_name}
-                          onChange={e => setNewSession({...newSession, project_name: e.target.value})}
-                          className="rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-xs h-16 px-6 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all"
-                        />
-                     </div>
-                     )}
-                   </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Meal Type</Label>
+                       <div className="relative group">
+                          <select 
+                            value={newSession.meal_type}
+                            onChange={e => updateLabel(e.target.value, newSession.branch_id)}
+                            className="w-full rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-[10px] h-16 px-6 outline-none focus:ring-4 focus:ring-blue-50 transition-all appearance-none cursor-pointer"
+                          >
+                             <option value="breakfast">Breakfast</option>
+                             <option value="lunch">Lunch</option>
+                             <option value="dinner">Dinner</option>
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                             <ChevronRight size={16} className="rotate-90" />
+                          </div>
+                       </div>
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Branch</Label>
+                       <div className="relative group">
+                          <select 
+                            value={newSession.branch_id}
+                            onChange={e => updateLabel(newSession.meal_type, e.target.value)}
+                            className="w-full rounded-2xl border-gray-100 bg-gray-50 font-black uppercase text-[10px] h-16 px-6 outline-none focus:ring-4 focus:ring-blue-50 transition-all appearance-none cursor-pointer"
+                          >
+                             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                             <ChevronRight size={16} className="rotate-90" />
+                          </div>
+                       </div>
+                    </div>
+                 </div>
 
                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-3">
